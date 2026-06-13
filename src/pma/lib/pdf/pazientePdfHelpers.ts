@@ -3,7 +3,7 @@ import type { Paziente } from '@pma/types/paziente'
 
 export function sanitizeFilePart(s: string): string {
   const t = s.trim().replace(/[^a-zA-Z0-9._\s-]+/g, '_').replace(/\s+/g, '_')
-  return t.slice(0, 72) || 'PMA'
+  return t.slice(0, 72) || 'DOCLOG'
 }
 
 /**
@@ -34,10 +34,10 @@ export function buildMailtoReportPaziente(params: {
   pazienteIdVisibile: string
   pdfFilename: string
 }): string {
-  const subject = `Scheda visita PMA — ${params.pazienteIdVisibile}`
+  const subject = `Scheda visita DOCLOG — ${params.pazienteIdVisibile}`
   const body = `Gentile Collega,
 
-di seguito le istruzioni per l'invio della scheda visita PMA.
+di seguito le istruzioni per l'invio della scheda visita.
 
 1) Il report PDF è stato scaricato automaticamente sul dispositivo con nome:
    ${params.pdfFilename}

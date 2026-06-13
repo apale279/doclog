@@ -126,8 +126,7 @@ export function PmaCodiceMinoreFormModal({
         {daTrasportoCentrale && (
           <div className="space-y-1 text-xs text-slate-600">
             <p>
-              Paziente inviato da centrale: nome, cognome e pettorale possono essere completati in
-              astanteria.
+              Paziente da trasporto: nome, cognome e pettorale possono essere completati in astanteria.
             </p>
             {row?.codiceMinore?.provenienzaTrasporto ? (
               <p className="rounded border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] text-slate-700">

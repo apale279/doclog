@@ -7,6 +7,14 @@
         { "fieldPath": "mezzo", "order": "ASCENDING" },
         { "fieldPath": "esito", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "firma_guest_token",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pazienteDocId", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

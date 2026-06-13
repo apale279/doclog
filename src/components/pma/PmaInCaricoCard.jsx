@@ -69,7 +69,7 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
           {paziente.pmaScheda?.infermiere_rif || '—'}
         </div>
       </dl>
-      <p className="pma-patient-card__label mt-2 font-bold text-violet-800">Apri scheda PMA →</p>
+      <p className="pma-patient-card__label mt-2 font-bold text-violet-800">Apri scheda →</p>
     </button>
   );
 }

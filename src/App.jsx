@@ -10,11 +10,14 @@ import PmaDeskPage from './pages/PmaDeskPage';
 import PmaPazientePage from './pages/PmaPazientePage';
 import DoclogPazientiPage from './pages/DoclogPazientiPage';
 import FirmaRefertoPage from './pages/FirmaRefertoPage';
+import FirmaGuestPage from './pages/FirmaGuestPage';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {/* Firma guest via QR — senza login, token monouso per paziente. */}
+      <Route path="/f/:token" element={<FirmaGuestPage />} />
       <Route element={<RequireAuthDoclog />}>
         <Route element={<AppDataShell />}>
           {/* Scheda paziente a tutto schermo (fuori dal layout). */}

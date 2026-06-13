@@ -57,7 +57,7 @@ export function DettaglioPaziente({
 
   const statusParts: string[] = [CODICE_COLORE_LABEL[p.codice_colore]]
   if (haStatoPma && statoPmaLabel) statusParts.push(`PPI: ${statoPmaLabel}`)
-  if (haStatoCentrale && statoCentraleLabel) statusParts.push(`Centrale: ${statoCentraleLabel}`)
+  if (haStatoCentrale && statoCentraleLabel) statusParts.push(statoCentraleLabel)
   const statusLine = statusParts.join(' · ')
 
   return (
@@ -114,7 +114,7 @@ export function DettaglioPaziente({
                 {haStatoCentrale && (
                   <>
                     {' '}
-                    · Centrale: <strong>{statoCentraleLabel}</strong>
+                    · <strong>{statoCentraleLabel}</strong>
                   </>
                 )}
                 {!haStatoPma && !haStatoCentrale && (
@@ -123,7 +123,7 @@ export function DettaglioPaziente({
               </span>
               {chiusoCentrale ? (
                 <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                  Chiuso centrale
+                  Chiuso
                 </span>
               ) : haStatoPma ? (
                 <span

@@ -21,6 +21,9 @@ import { validateDimissioneBeforeClose } from '@pma/lib/dimissioneValidate'
 import { PmaAllergieSiAlert } from './PmaAllergieSiAlert'
 import { staffSoftRefFromUser } from '@pma/lib/staffSoftRef'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
+import { FirmaIpadActions } from '../../../components/firma/FirmaIpadActions'
+import { revokeFirmaGuestTokenForPaziente } from '../../../services/firmaGuestTokenService'
+import { TENANT_ID } from '../../../constants'
 import {
   parsePmaIpadQueueRequest,
   pushPmaIpadFirmaRequest,
@@ -225,6 +228,7 @@ export function DimissioneSection({
         patch.dimissione_firma_medico_url = deleteField()
       }
       await write(patch)
+      await revokeFirmaGuestTokenForPaziente(p.id_manifestazione || TENANT_ID, p.id)
       setDimettiOpen(false)
     } catch (e) {
       setDimettiErr(e instanceof Error ? e.message : 'Dimissione non riuscita.')
@@ -504,57 +508,16 @@ export function DimissioneSection({
           <div className="pma-section-hdr">Firma paziente (opzionale)</div>
           <div className="px-3 pb-3">
             {dimissioneEdit ? (
-              <button
-                type="button"
-                onClick={() =>
-                  window.open(
-                    `/firma/${encodeURIComponent(p.id_pma)}/${encodeURIComponent(p.id)}`,
-                    'doclog-firma',
-                    'width=860,height=1180',
-                  )
-                }
-                className={`${btnSecondary} mb-3 w-full sm:w-auto`}
-                title="Apre una finestra firma da spostare sull'iPad (schermo esteso)"
-              >
-                🖊️ Apri firma su iPad / schermo esteso
-              </button>
-            ) : null}
-            {dimissioneEdit && pmaIpadFirma ? (
-              <div className="mb-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">
-                <p className="text-xs text-violet-950">
-                  <strong>iPad PMA:</strong> apre sul tablet lo spazio firma paziente (come in
-                  dimissione). Il paziente firma e la firma torna qui in scheda. Resta valida solo
-                  l&apos;ultima richiesta inviata.
-                </p>
-                <button
-                  type="button"
-                  disabled={ipadBusy}
-                  onClick={() => void handleInviaIpadFirma()}
-                  className={`${btnPrimary} uppercase tracking-wide disabled:opacity-50`}
-                >
-                  {ipadBusy ? 'Invio…' : 'Apri firma su iPad'}
-                </button>
-                {ipadOk ? (
-                  <p className="text-xs font-medium text-emerald-800" role="status">
-                    Firma aperta sull&apos;iPad — in attesa del paziente…
-                  </p>
-                ) : null}
-                {ipadErr ? (
-                  <p className="text-xs text-red-800" role="alert">
-                    {ipadErr}
-                  </p>
-                ) : null}
-                {ipadQueueForPatient?.status === 'pending' ? (
-                  <p className="text-xs text-amber-900" role="status">
-                    In attesa firma su iPad…
-                  </p>
-                ) : null}
-                {ipadQueueForPatient?.status === 'signed' ? (
-                  <p className="text-xs font-medium text-emerald-800" role="status">
-                    Firma ricevuta dall&apos;iPad.
-                  </p>
-                ) : null}
-              </div>
+              <FirmaIpadActions
+                manifestationId={p.id_manifestazione || TENANT_ID}
+                pmaId={p.id_pma}
+                pazienteDocId={p.id}
+                patientLabel={[p.cognome, p.nome].filter(Boolean).join(' ') || 'Paziente'}
+                idPazienteVisibile={p.id_paziente_visibile ?? ''}
+                buildPdfBlob={buildCurrentPdfBlob}
+                currentFirma={p.firma_paziente_base64 ?? null}
+                disabled={pazienteGiaDimesso}
+              />
             ) : null}
             {dimissioneEdit ? (
               <div className="space-y-3">

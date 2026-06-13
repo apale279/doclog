@@ -65,7 +65,7 @@ export function FarmaciConsumatiEditor({ value, onChange, disabled = false }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-xs font-bold uppercase text-slate-700">Farmaci consumati (catalogo PMA)</h4>
+        <h4 className="text-xs font-bold uppercase text-slate-700">Farmaci consumati</h4>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btnSecondary} disabled={disabled} onClick={importFromSeed}>
             Importa da CSV standard

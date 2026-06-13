@@ -6,7 +6,7 @@ export const DOCLOG_RANK = {
 
 export const DOCLOG_RANK_LABEL = {
   [DOCLOG_RANK.ADMIN]: 'Admin',
-  [DOCLOG_RANK.PMA]: 'PMA (riceve notifiche)',
+  [DOCLOG_RANK.PMA]: 'Operatore (notifiche)',
 };
 
 /** Rank sconosciuto → PMA (privilegio minimo: nessuna gestione utenti/impostazioni). */

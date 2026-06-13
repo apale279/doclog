@@ -135,7 +135,7 @@ export function PmaChiamaTriageAlertListener() {
             className={`${btnPrimary} flex-1 text-center`}
             onClick={() => void dismiss()}
           >
-            Apri desk PMA
+            Apri dashboard
           </Link>
           <button
             type="button"

@@ -68,7 +68,7 @@ export function PmaCodiceMinoreScheda({ pazienteDocId, pmaId, pmaNome, onClose }
       <div className="p-8 text-center text-sm text-slate-600">
         Paziente non trovato.
         <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
-          Torna al PMA
+          Torna alla dashboard
         </button>
       </div>
     );
@@ -144,7 +144,7 @@ export function PmaCodiceMinoreScheda({ pazienteDocId, pmaId, pmaNome, onClose }
               ) : null}
               {isPercorsoCodiceMinoreTrasporto(rawDoc) ? (
                 <div className="sm:col-span-2 text-xs text-amber-800">
-                  Da trasporto centrale
+                  Da trasporto
                   {rawDoc.idMissione ? ` — missione ${rawDoc.idMissione}` : ''}
                 </div>
               ) : null}
@@ -205,7 +205,7 @@ export function PmaCodiceMinoreScheda({ pazienteDocId, pmaId, pmaNome, onClose }
           <PmaCodiceMinoreDatiArchiviati paziente={rawDoc} manifestationId={manifestationId} />
 
           <button type="button" className={`${btnSecondary} w-full sm:w-auto`} onClick={onClose}>
-            Torna al desk PMA
+            Torna alla dashboard
           </button>
         </section>
       </div>

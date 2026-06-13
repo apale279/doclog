@@ -152,10 +152,6 @@ export default function PmaDeskPage() {
 
   const list = pazienti.filter((p) => pazienteVisibileInPmaDesk(p, pma.id));
 
-  const inArrivo = list.filter((p) => {
-    const s = normalizeStatoPzPma(p.statoPzPma);
-    return s === STATO_PZ_PMA.IN_ARRIVO || (s == null && !isPazienteOriginePma(p));
-  });
   const inAttesa = list.filter((p) => {
     const s = normalizeStatoPzPma(p.statoPzPma);
     if (s === STATO_PZ_PMA.IN_ATTESA) return true;
@@ -283,7 +279,7 @@ export default function PmaDeskPage() {
   const handleRendiCodiceMinore = async (paziente) => {
     if (
       !window.confirm(
-        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati centrale e la scheda clinica restano archiviati.',
+        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati anagrafici e la scheda clinica restano archiviati.',
       )
     ) {
       return;

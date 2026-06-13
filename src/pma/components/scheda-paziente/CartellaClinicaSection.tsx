@@ -958,7 +958,7 @@ export function CartellaClinicaSection({
                 schedaReadonlyHint && !bloccoVerificaAllergie ? (
                   <p className="mx-auto mt-2 max-w-md text-center text-xs font-semibold text-amber-800">
                     Scheda in sola lettura per il tuo account. Verifica: paziente <strong>in carico</strong>{' '}
-                    al PPI, accesso da tenda (/pma) o sblocco scheda in centrale.
+                    al PPI oppure sblocco scheda dal medico.
                   </p>
                 ) : null
               }

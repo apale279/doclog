@@ -10,6 +10,7 @@ export const COLLECTIONS = {
   impostazioni: 'impostazioni',
   telegram_users: 'telegram_users',
   note_diario: 'note_diario',
+  firma_guest_token: 'firma_guest_token',
 };
 
 export const manifestazioniCollection = () => [COLLECTIONS.manifestazioni];
@@ -51,6 +52,13 @@ export const telegramUsersPath = (tenantId = TENANT_ID) => [
   'manifestazioni',
   resolveTenantId(tenantId),
   'telegram_users',
+];
+
+/** Token firma guest (QR senza login): manifestazioni/{id}/firma_guest_token/{tokenId} */
+export const firmaGuestTokenPath = (tenantId = TENANT_ID) => [
+  'manifestazioni',
+  resolveTenantId(tenantId),
+  COLLECTIONS.firma_guest_token,
 ];
 
 /** Segmenti della sotto-collezione valutazioni: `collection(db, …pazientiPath, pid, valutazioniSoccorso)`. */

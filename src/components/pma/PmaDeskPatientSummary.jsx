@@ -72,12 +72,12 @@ export function PmaDeskPatientSummary({
       ) : null}
       {showOrigin ? (
         <span className="inline-flex shrink-0 items-center gap-0.5">
-          <PmaOrigineEmoji paziente={paziente} />
+          <PmaOrigineEmoji />
           {mostraArrivatoPma ? (
             <span
               className="pma-patient-card__origin shrink-0 leading-none"
-              title="Paziente arrivato al PMA"
-              aria-label="Paziente arrivato al PMA"
+              title="Paziente in tenda"
+              aria-label="Paziente in tenda"
             >
               🏥
             </span>

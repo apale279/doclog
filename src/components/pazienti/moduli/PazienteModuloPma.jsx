@@ -14,7 +14,6 @@ import {
   STATO_PZ_PMA,
   statoPzPmaLabel,
 } from '../../../lib/pmaModule';
-import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
 import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
 
 const SOREU_PARTIAL_TO_SCHEDA_PATH = {
@@ -58,7 +57,6 @@ import {
 import { staffSoftRefFromUser } from '../../../pma/lib/staffSoftRef';
 import { schedaTabDimissioneAllows } from '../../../pma/lib/rankMatrix';
 import { PmaFieldPresenceProvider } from '../../../pma/context/PmaFieldPresenceContext';
-import { PazienteModuloCentrale } from './PazienteModuloCentrale';
 import { PmaPazientePanel } from '../PmaPazientePanel';
 import { effectivePmaUserRank, isPmaMedicoAccount, normalizePmaRank } from '../../../lib/userAccess';
 import { IS_SUPERADMIN } from '../../../constants';
@@ -194,7 +192,7 @@ export function PazienteModuloPma({
     if (!rawDoc || !manifestationId || !patientDocId || !pmaId) return;
     if (
       !window.confirm(
-        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati centrale e la scheda clinica restano archiviati.',
+        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati anagrafici e la scheda clinica restano archiviati.',
       )
     ) {
       return;
@@ -353,38 +351,13 @@ export function PazienteModuloPma({
     />
   );
 
-  const messaggioAutopresentatoDatiCentrale = (
-    <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-      Paziente autopresentato al PPI: nessun dato operativo da centrale (evento, missione, esito
-      trasporto, valutazioni MSB/MSA).
-    </p>
-  );
-
-  const defaultDatiCentrale = isAutopresentato ? (
-    messaggioAutopresentatoDatiCentrale
-  ) : moduli?.eventoCentrale ? (
-    <PazienteModuloCentrale
-      manifestationId={manifestationId}
-      patientDocId={patientDocId}
-      paziente={rawDoc}
-      evento={eventoResolved}
-      missioniEvento={missioniEvento}
-    />
-  ) : (
-    messaggioAutopresentatoDatiCentrale
-  );
-
   const canEditDimissioneTab = Boolean(
     canEditPma && pmaUser && schedaTabDimissioneAllows(pmaUser.rank, 'UPDATE'),
   );
-  const schedaModificabile = rawDoc ? isSchedaModificabile(rawDoc) : false;
-
-  // DOCLOG: nessun iPad firma (firma paziente direttamente in scheda).
   const pmaIpadFirma = null;
 
   const shellPanels = {
     anagrafica: anagraficaPanel ?? defaultAnagrafica,
-    dati_centrale: datiCentralePanel ?? defaultDatiCentrale,
     triage: hasPmaScheda ? (
       <TriageSection
         pazienteId={patientDocId}
@@ -568,7 +541,7 @@ export function PazienteModuloPma({
 
       {vistaCentrale && !canEditPma && rawDoc.statoPzPma === STATO_PZ_PMA.IN_CARICO && (
         <p className="text-xs text-slate-600">
-          La cartella clinica PPI è modificabile dal personale in tenda mentre il paziente è{' '}
+          La cartella clinica è modificabile dal personale in tenda mentre il paziente è{' '}
           <strong>in carico</strong>.
         </p>
       )}
@@ -593,13 +566,11 @@ export function PazienteModuloPma({
           saveError={null}
           panels={shellPanels}
           fillHeight={vistaPma}
-          variant="cross"
+          variant={vistaPma ? 'pma' : 'cross'}
           mobileFocused={mobileVistaPma}
           statoPmaLabel={statoPzPmaLabel(rawDoc.statoPzPma)}
-          statoCentraleLabel={
-            isPazienteOriginePma(rawDoc) ? null : statoCentraleLabel(rawDoc)
-          }
-          chiusoCentrale={isChiusoCentrale(rawDoc)}
+          statoCentraleLabel={null}
+          chiusoCentrale={false}
           alertSlot={mobileAlertSlot}
         />
       </div>

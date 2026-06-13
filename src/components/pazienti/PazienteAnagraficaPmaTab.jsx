@@ -178,13 +178,13 @@ export function PazienteAnagraficaPmaTab({
 
       {readOnly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Paziente inviato dalla centrale: anagrafica in sola lettura. La cartella clinica è
-          modificabile dal personale in tenda quando il paziente è in carico.
+          Anagrafica in sola lettura. La cartella clinica è modificabile quando il paziente è in
+          carico.
         </p>
       )}
 
       <dl className="grid gap-3 md:grid-cols-2">
-        <FormField label="Stato PMA">
+        <FormField label="Stato paziente">
           {canEditStatoPma ? (
             <select
               className={selectClass}
@@ -205,12 +205,6 @@ export function PazienteAnagraficaPmaTab({
           )}
         </FormField>
       </dl>
-      {!isAutopresentato && (
-        <p className="text-xs text-slate-500">
-          Paziente da centrale: lo stato PMA segue la missione (DIRETTO H → in arrivo, ARRIVATO H →
-          in carico). Il medico può prendere in carico manualmente dalla dashboard PMA.
-        </p>
-      )}
 
       <div className="border-t border-slate-200 pt-3">
         <p className="mb-2 text-xs font-bold uppercase text-slate-600">Anagrafica</p>

@@ -14,7 +14,6 @@ import type { SchedaPazienteTabId } from './scheda-paziente/schedaPazienteTabs';
 
 const SHELL_TAB_IDS: SchedaPazienteTabId[] = [
   'anagrafica',
-  'dati_centrale',
   'triage',
   'cartella',
   'dimissione',
@@ -34,7 +33,7 @@ type Props = {
   onClose: () => void;
 };
 
-/** Vista PMA a schermo intero: tab anagrafica / dati centrale / cartella / dimissioni (default cartella). */
+/** Vista scheda a schermo intero: anagrafica, cartella, dimissioni (default cartella). */
 export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props) {
   const [searchParams] = useSearchParams();
   const initialTab = parseShellTab(searchParams.get('tab'));

@@ -94,7 +94,7 @@ export function UtentiEditor() {
       <h3 className="mb-1 text-sm font-bold uppercase text-slate-900">Utenti</h3>
       <p className="mb-4 text-xs text-slate-600">
         <strong>Admin</strong>: accesso completo (gestione utenti e impostazioni).{' '}
-        <strong>PMA</strong>: opera normalmente e <strong>riceve la notifica</strong> quando qualcuno
+        <strong>Operatore</strong>: opera normalmente e <strong>riceve la notifica</strong> quando qualcuno
         clicca «Fai entrare paziente».
       </p>
 

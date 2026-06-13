@@ -8,8 +8,7 @@ export function PmaRendiCodiceMinoreBlock({ busy, onClick, compact = false }) {
         <>
           <p className="mb-2 text-xs font-bold uppercase text-violet-800">Codice minore (fast track)</p>
           <p className="mb-3 text-xs text-slate-600">
-            Invia il paziente in astanteria senza aprire la cartella clinica. Evento, missione e dati
-            centrale restano archiviati sul paziente.
+            Evento, missione e dati anagrafici restano archiviati sul paziente.
           </p>
         </>
       ) : null}

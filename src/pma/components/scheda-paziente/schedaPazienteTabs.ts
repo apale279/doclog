@@ -11,10 +11,9 @@ export type SchedaPazienteTabId =
   | 'dimissione'
   | 'invio_ps'
 
-/** Tab vista PMA a schermo intero (dashboard tenda). */
+/** Tab vista scheda a schermo intero (dashboard PPI). */
 export const PMA_SHELL_TABS: { id: SchedaPazienteTabId; label: string }[] = [
   { id: 'anagrafica', label: 'Anagrafica' },
-  { id: 'dati_centrale', label: 'Dati centrale' },
   { id: 'triage', label: 'Triage' },
   { id: 'cartella', label: 'Cartella clinica' },
   { id: 'dimissione', label: 'Dimissioni' },
@@ -26,7 +25,7 @@ export const PMA_CLINICAL_SHELL_TABS: { id: SchedaPazienteTabId; label: string }
   { id: 'dimissione', label: 'Dimissioni' },
 ]
 
-/** Tab shell PMA (autopresentati includono «Dati centrale» con messaggio informativo). */
+/** Tab shell scheda paziente. */
 export function pmaShellTabsFor(
   _isAutopresentato: boolean,
   opts?: { hasPmaScheda?: boolean },

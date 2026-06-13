@@ -33,7 +33,7 @@ export function PmaCodiciMinoriPanel({
   return (
     <div className="min-w-0 space-y-4">
       <p className="min-w-0 max-w-prose text-sm text-slate-600">
-        Astanteria fast track: i pazienti entrano qui con «Rendi codice minore» dal desk PMA.
+        Astanteria fast track: i pazienti entrano qui con «Rendi codice minore» dalla dashboard.
         Clicca una riga per aprire anagrafica e chiudere il trattamento.
       </p>
 

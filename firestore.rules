@@ -42,6 +42,28 @@ service cloud.firestore {
       match /pma_firma_ipad/{document=**} { allow read, write: if isSignedIn(); }
       match /pma_firma_coda/{document=**} { allow read, write: if isSignedIn(); }
       match /telegram_users/{document=**} { allow read, write: if isSignedIn(); }
+
+      // Token firma guest (QR senza login): lettura/scrittura firma solo se attivo.
+      match /firma_guest_token/{tokenId} {
+        function tokenActive() {
+          return resource.data.active == true;
+        }
+        function guestFirmaUpdateOnly() {
+          return request.auth == null
+            && tokenActive()
+            && request.resource.data.active == true
+            && request.resource.data.pazienteDocId == resource.data.pazienteDocId
+            && request.resource.data.pmaId == resource.data.pmaId
+            && request.resource.data.patientLabel == resource.data.patientLabel
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firma_paziente_base64', 'firma_saved_at'])
+            && request.resource.data.firma_paziente_base64 is string
+            && request.resource.data.firma_paziente_base64.size() <= 700000;
+        }
+        allow read: if tokenActive();
+        allow create, update: if isSignedIn();
+        allow update: if guestFirmaUpdateOnly();
+        allow delete: if isSignedIn();
+      }
     }
   }
 }

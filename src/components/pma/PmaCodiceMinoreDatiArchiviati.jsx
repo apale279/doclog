@@ -46,8 +46,8 @@ export function PmaCodiceMinoreDatiArchiviati({ paziente, manifestationId }) {
   return (
     <div className="space-y-3">
       <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
-        I dati centrale, missione, valutazioni MSB/MSA e la scheda clinica PMA restano salvati sul
-        documento paziente. Qui sotto puoi consultarli in sola lettura.
+        I dati di evento, missione e la scheda clinica restano salvati sul documento paziente. Qui
+        sotto puoi consultarli in sola lettura.
       </p>
 
       {daCentrale && manifestationId ? (
@@ -62,7 +62,7 @@ export function PmaCodiceMinoreDatiArchiviati({ paziente, manifestationId }) {
 
       {(autopresentato || haSchedaClinica) && !daCentrale ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
-          <p className="mb-2 text-xs font-bold uppercase text-slate-600">Scheda PMA precedente</p>
+          <p className="mb-2 text-xs font-bold uppercase text-slate-600">Scheda clinica precedente</p>
           <dl className="grid gap-2 sm:grid-cols-2">
             {scheda.tipo_evento ? (
               <div>
@@ -100,7 +100,7 @@ export function PmaCodiceMinoreDatiArchiviati({ paziente, manifestationId }) {
 
       {daCentrale && haSchedaClinica ? (
         <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
-          <span className="font-semibold text-slate-700">Scheda clinica PMA: </span>
+          <span className="font-semibold text-slate-700">Scheda clinica: </span>
           {scheda.tipo_evento || scheda.dettaglio_evento
             ? `${scheda.tipo_evento ?? ''}${scheda.dettaglio_evento ? ` — ${scheda.dettaglio_evento}` : ''}`
             : 'presente'}
