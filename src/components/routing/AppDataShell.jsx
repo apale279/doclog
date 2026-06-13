@@ -1,0 +1,42 @@
+import { Outlet } from 'react-router-dom';
+import { FirestoreSyncProvider } from '../../context/FirestoreSyncContext';
+import { ManifestazioneDataProvider } from '../../context/ManifestazioneDataContext';
+import { EventoSchedaProvider } from '../../context/EventoSchedaContext';
+import { GoogleMapsProvider } from '../../context/GoogleMapsContext';
+import { ManifestazioneIdProvider } from '../../context/ManifestazioneContext';
+import { useTenantContext } from '../../context/TenantContext';
+import { TenantConfigMissing } from './TenantConfigMissing';
+
+function AppDataShellInner() {
+  const { tenantId, loading } = useTenantContext();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-600">Caricamento configurazione…</p>
+      </div>
+    );
+  }
+
+  if (!tenantId) {
+    return <TenantConfigMissing />;
+  }
+
+  return (
+    <ManifestazioneIdProvider tenantId={tenantId}>
+      <GoogleMapsProvider>
+        <FirestoreSyncProvider>
+          <ManifestazioneDataProvider>
+            <EventoSchedaProvider>
+              <Outlet />
+            </EventoSchedaProvider>
+          </ManifestazioneDataProvider>
+        </FirestoreSyncProvider>
+      </GoogleMapsProvider>
+    </ManifestazioneIdProvider>
+  );
+}
+
+export function AppDataShell() {
+  return <AppDataShellInner />;
+}

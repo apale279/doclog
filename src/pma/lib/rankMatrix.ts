@@ -1,0 +1,82 @@
+/** Matrice permessi scheda PMA e navigazione operatori tenda. */
+export type UserRank =
+  | 'Superadmin'
+  | 'Centrale'
+  | 'Medico'
+  | 'Infermiere'
+  | 'Soccorritore'
+  | 'Triage';
+
+type MatrixAction = 'READ' | 'UPDATE';
+
+const CARTELLA_READ: UserRank[] = [
+  'Superadmin',
+  'Centrale',
+  'Medico',
+  'Infermiere',
+  'Soccorritore',
+  'Triage',
+];
+/** Cartella clinica: tutti i rank PMA possono modificare (con eccezioni puntuali, es. farmaci). */
+const CARTELLA_UPDATE: UserRank[] = [
+  'Superadmin',
+  'Centrale',
+  'Medico',
+  'Infermiere',
+  'Soccorritore',
+  'Triage',
+];
+
+/** Dimissione: Infermiere, Soccorritore e Triage solo lettura. */
+const DIMISSIONE_READ: UserRank[] = [
+  'Superadmin',
+  'Centrale',
+  'Medico',
+  'Infermiere',
+  'Soccorritore',
+  'Triage',
+];
+const DIMISSIONE_UPDATE: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
+
+const INVIO_PS_READ: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
+const INVIO_PS_UPDATE: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
+
+const FARMACI_INSERT: UserRank[] = ['Superadmin', 'Centrale', 'Medico', 'Infermiere'];
+
+function allows(rank: UserRank, allowed: UserRank[], action: MatrixAction): boolean {
+  if (!allowed.includes(rank)) return false;
+  return action === 'READ' || allowed.includes(rank);
+}
+
+export function schedaTabCartellaAllows(rank: UserRank, action: MatrixAction): boolean {
+  return allows(rank, action === 'READ' ? CARTELLA_READ : CARTELLA_UPDATE, action);
+}
+
+export function schedaTabDimissioneAllows(rank: UserRank, action: MatrixAction): boolean {
+  return allows(rank, action === 'READ' ? DIMISSIONE_READ : DIMISSIONE_UPDATE, action);
+}
+
+/** Chiusura definitiva paziente (pulsante «Dimetti»): solo medico in tenda (+ superadmin). */
+export function canChiudiDimissionePaziente(rank: UserRank): boolean {
+  return rank === 'Medico' || rank === 'Superadmin';
+}
+
+export function schedaTabInvioPsAllows(rank: UserRank, action: MatrixAction): boolean {
+  return allows(rank, action === 'READ' ? INVIO_PS_READ : INVIO_PS_UPDATE, action);
+}
+
+/** Inserimento / modifica farmaci in cartella: non consentito a Soccorritore e Triage. */
+export function canInsertFarmaci(rank: UserRank): boolean {
+  return FARMACI_INSERT.includes(rank);
+}
+
+/** Solo Centrale può impostare stato «in arrivo». */
+export function schedaStatoInArrivoAllows(rank: UserRank): boolean {
+  return rank === 'Superadmin' || rank === 'Centrale';
+}
+
+/** Invio PS: Centrale e Medico se la scheda è modificabile (in carico o sbloccata manualmente). */
+export function canWriteInvioPsFields(rank: UserRank, schedaModificabile: boolean): boolean {
+  if (!schedaModificabile) return false;
+  return rank === 'Superadmin' || rank === 'Centrale' || rank === 'Medico';
+}

@@ -1,0 +1,742 @@
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Timestamp, deleteField } from 'firebase/firestore';
+import { Clock } from 'lucide-react';
+import { DEFAULT_IMPOSTAZIONI } from '../../constants';
+import {
+  resolveCodiceColoreEvento,
+  resolveCodiceColoreMissione,
+  parseCodiceColoreOptional,
+} from '../../lib/codiciColore';
+import { ESITI_MISSIONE, ESITO_MISSIONE_DEFAULT, normalizeEsitoMissione, esitoMissioneTerminaCopertura } from '../../lib/missioneEsito';
+import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { ColoreSelectButtons } from '../ui/ColoreSelectButtons';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { eventoColonnaIndirizzo } from '../../lib/eventoDisplay';
+import { findEvento } from '../../lib/eventoLinks';
+import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
+import { buildStatoChangeFields, patchStoricoStatoAt } from '../../lib/missionStoricoStati';
+import { validateMissioneAperturaChange } from '../../lib/missioneAperturaValidate';
+import {
+  normalizeTratteMissione,
+  nuovaTrattaMissione,
+  tratteMissioneToFirestore,
+} from '../../lib/missionTratte';
+import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
+import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
+import { patchMissione, deleteMissione } from '../../services/missioniService';
+import { useElapsedSince } from '../../hooks/useElapsedSince';
+import { statoMissioneBadgeClass, formatTimestamp } from '../../utils/formatters';
+import { operatoreCreatoLine, operatoreUserLabel } from '../../lib/operatoreAudit';
+import {
+  FormField,
+  btnSecondary,
+  btnDanger,
+  inputClass,
+  selectClass,
+} from '../ui/FormField';
+import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
+import { MissionePazientiTrasportoSection } from './MissionePazientiTrasportoSection';
+import { MissionePazienteRiferimentoSection } from './MissionePazienteRiferimentoSection';
+import { MissionePmaInvioPsBadge } from './MissionePmaInvioPsBadge';
+import {
+  isMissionePmaInvioPs,
+  ospedaleDestinazioneMissione,
+} from '../../lib/pmaInvioPsMission';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
+import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
+import { findMezzoBySigla } from '../../lib/mezzoMissione';
+import { pazientiTrasportoPerMissione } from '../../lib/pazientiTrasportoQuery';
+import { confirmDelete } from '../../utils/confirmDelete';
+
+function notifyFirestoreError(err) {
+  alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+}
+
+export function MissioneScheda(props) {
+  if (!props.missione?._docId) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        Scheda missione non disponibile. Chiudi il dialog e riapri la missione dall&apos;elenco.
+      </div>
+    );
+  }
+  return <MissioneSchedaLoaded {...props} />;
+}
+
+function MissioneSchedaLoaded({
+  missione,
+  eventi,
+  mezzi,
+  allMissioni,
+  existingEventi,
+  pazienti = [],
+  onOpenEvento,
+  onOpenPaziente,
+  onDeleted,
+  readOnly = false,
+}) {
+  const manifestationId = useManifestazioneId();
+  const { impostazioni } = useImpostazioni();
+  const telegramEnabled = impostazioni?.telegramBotEnabled === true;
+  const stati =
+    Array.isArray(impostazioni?.statiMissione) && impostazioni.statiMissione.length > 0
+      ? impostazioni.statiMissione
+      : DEFAULT_IMPOSTAZIONI.statiMissione;
+  const elapsed = useElapsedSince(missione.statoDa ?? missione.apertura);
+  const storico = missione.storicoStati ?? {};
+  const statoMissioneBloccato =
+    missione.stato === 'FINE MISSIONE' || missione.stato === 'ANNULLATA';
+
+  const evento = useMemo(
+    () => findEvento(eventi, missione.eventoIdUnivoco || missione.eventoCorrelato),
+    [eventi, missione],
+  );
+  const mezzo = useMemo(
+    () => findMezzoBySigla(mezzi, missione.mezzo),
+    [mezzi, missione.mezzo],
+  );
+
+  const pazientiTrasporto = useMemo(
+    () => pazientiTrasportoPerMissione(pazienti, missione),
+    [pazienti, missione],
+  );
+
+  const coloreM = useMemo(() => resolveCodiceColoreMissione(missione), [missione]);
+
+  const tratte = useMemo(
+    () => normalizeTratteMissione(missione.tratteMissione),
+    [missione.tratteMissione],
+  );
+
+  const ospedaleDest = useMemo(
+    () => ospedaleDestinazioneMissione(missione),
+    [missione],
+  );
+  const missioneInvioPs = isMissionePmaInvioPs(missione);
+  const esitoTerminaCopertura = esitoMissioneTerminaCopertura(missione.esitoMissione);
+
+  const gestisciPazientiPmaPrimaChiusura = async (motivoChiusura, titolo) => {
+    const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+      manifestationId,
+      missioni: missione,
+      pazienti,
+      eventi,
+      motivoChiusura,
+      impostazioni,
+      titolo,
+    });
+    return proceed;
+  };
+
+  const handleEliminaMissione = async () => {
+    const altriTrasporti = pazientiTrasporto.filter(
+      (p) => !String(p.destinazionePmaId ?? '').trim(),
+    );
+    if (altriTrasporti.length > 0) {
+      const n = altriTrasporti.length;
+      if (
+        !window.confirm(
+          `La missione ha ${n} paziente/i collegati: verranno scollegati dal mezzo ma resteranno sull'evento. Continuare?`,
+        )
+      ) {
+        return;
+      }
+    }
+    if (!confirmDelete(`missione ${missione.idMissione}`)) return;
+    try {
+      const proceed = await gestisciPazientiPmaPrimaChiusura(
+        MISSION_PMA_CLOSE_MOTIVO.DELETE,
+        `Eliminazione missione ${missione.idMissione}`,
+      );
+      if (!proceed) return;
+      await deleteMissione(manifestationId, missione._docId);
+      onDeleted?.();
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const tratteWriteChainRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    tratteWriteChainRef.current = Promise.resolve();
+  }, [missione._docId]);
+
+  const persistTratte = useCallback(
+    async (next, { removeIds = [] } = {}) => {
+      const sorted = [...next].sort((a, b) => a.quando.getTime() - b.quando.getTime());
+      const write = tratteWriteChainRef.current
+        .then(() =>
+          patchMissione(
+            manifestationId,
+            missione._docId,
+            { tratteMissione: tratteMissioneToFirestore(sorted) },
+            missione.mezzo,
+            removeIds.length ? { tratteRemoveIds: removeIds } : {},
+          ),
+        )
+        .catch((err) => {
+          notifyFirestoreError(err);
+          throw err;
+        });
+      tratteWriteChainRef.current = write.catch(() => {});
+      await write;
+    },
+    [manifestationId, missione._docId, missione.mezzo],
+  );
+
+  const aggiungiTratta = async () => {
+    await persistTratte([...tratte, nuovaTrattaMissione()]);
+  };
+
+  const onTrattaQuandoBlur = async (id, localValue) => {
+    const date = fromDatetimeLocalValue(localValue);
+    if (!date) return;
+    const cur = tratte.find((t) => t.id === id);
+    if (!cur) return;
+    if (date.getTime() === cur.quando.getTime()) return;
+    await persistTratte(tratte.map((t) => (t.id === id ? { ...t, quando: date } : t)));
+  };
+
+  const onTrattaDescrizioneBlur = async (id, value) => {
+    const cur = tratte.find((t) => t.id === id);
+    if (!cur || value === cur.descrizione) return;
+    await persistTratte(tratte.map((t) => (t.id === id ? { ...t, descrizione: value } : t)));
+  };
+
+  const rimuoviTratta = async (id) => {
+    if (tratte.length === 0) return;
+    if (!window.confirm('Rimuovere questa tratta dalla missione?')) return;
+    await persistTratte(
+      tratte.filter((t) => t.id !== id),
+      { removeIds: [id] },
+    );
+  };
+
+  const patchColoreMissione = async (colore) => {
+    try {
+      const valid = parseCodiceColoreOptional(colore);
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        valid
+          ? { codiceColoreMissione: valid }
+          : { codiceColoreMissione: deleteField() },
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const patchColoreTrasporto = async (colore) => {
+    try {
+      const valid = parseCodiceColoreOptional(colore);
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        valid
+          ? { codiceColoreTrasporto: valid }
+          : { codiceColoreTrasporto: deleteField() },
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const patchEsitoMissione = async (esito, altro) => {
+    try {
+      const fields = { esitoMissione: normalizeEsitoMissione(esito) };
+      if (fields.esitoMissione === 'ALTRO') {
+        fields.esitoMissioneAltro = (altro ?? '').trim();
+      } else {
+        fields.esitoMissioneAltro = '';
+      }
+      await patchMissione(manifestationId, missione._docId, fields, missione.mezzo);
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const impostaStatoOra = async (nuovo) => {
+    if (nuovo === missione.stato) return;
+    if (statoMissioneBloccato && nuovo !== missione.stato) return;
+    try {
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        buildStatoChangeFields(missione, nuovo),
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const onStoricoBlur = async (statoKey, localValue) => {
+    const date = fromDatetimeLocalValue(localValue);
+    const prev = toDatetimeLocalValue(storico[statoKey]);
+    if (localValue === prev) return;
+    try {
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        patchStoricoStatoAt(missione, statoKey, date),
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const onAperturaMissioneBlur = async (value) => {
+    const prev = toDatetimeLocalValue(missione.apertura);
+    if (!value || value === prev) return;
+    const date = fromDatetimeLocalValue(value);
+    if (!date) return;
+    const validation = validateMissioneAperturaChange({ nextDate: date, missione, evento });
+    if (!validation.ok) {
+      alert(validation.message);
+      return;
+    }
+    try {
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        { apertura: Timestamp.fromDate(date) },
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
+  };
+
+  const aperturaMissioneInput = (
+    <label className="flex items-center gap-1.5 text-xs text-slate-500">
+      <span className="shrink-0 font-medium">Apertura:</span>
+      <input
+        type="datetime-local"
+        defaultValue={toDatetimeLocalValue(missione.apertura)}
+        key={toDatetimeLocalValue(missione.apertura)}
+        onBlur={(e) => void onAperturaMissioneBlur(e.target.value)}
+        className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-700 focus:border-sky-400 focus:outline-none"
+        title="Data/ora creazione missione. Deve essere ≥ apertura evento e ≤ cronologia stati/tappe."
+      />
+    </label>
+  );
+
+  if (readOnly) {
+    return (
+      <div className="space-y-4 text-sm">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
+          <span className="font-mono text-xl font-bold text-slate-900">{missione.idMissione}</span>
+          <MissionePmaInvioPsBadge missione={missione} className="text-xs" />
+          <span
+            className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(missione.stato)}`}
+          >
+            {missione.stato}
+          </span>
+          <span className="font-mono text-xs text-slate-500">{elapsed}</span>
+          <span className="text-xs text-slate-500">{operatoreCreatoLine(missione)}</span>
+        </div>
+        <dl className="grid gap-2">
+          <Row label="Evento" value={missione.eventoCorrelato} mono />
+          <Row label="Mezzo" value={missione.mezzo} mono />
+          {(missioneInvioPs || ospedaleDest) && (
+            <Row label="Ospedale destinazione" value={ospedaleDest || '—'} />
+          )}
+          <Row label="Creato" value={operatoreCreatoLine(missione)} />
+          <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
+          <Row label="Equipaggio" value={missione.equipaggio || '—'} />
+        </dl>
+        {missioneInvioPs && ospedaleDest && (
+          <section className="rounded border border-violet-300 bg-violet-50 p-3">
+            <p className="text-xs font-bold uppercase text-violet-900">Destinazione PS</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">{ospedaleDest}</p>
+          </section>
+        )}
+        <MissionePazienteRiferimentoSection
+          riferimento={missione.pazienteRiferimento}
+          onOpenPaziente={onOpenPaziente}
+        />
+        <MissionePazientiTrasportoSection
+          pazienti={pazientiTrasporto}
+          onOpenPaziente={onOpenPaziente}
+        />
+        {(missione.noteMissione ?? '').trim() ? (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase text-slate-600">Note missione</p>
+            <p className="mt-1 whitespace-pre-wrap text-slate-800">{missione.noteMissione}</p>
+          </section>
+        ) : null}
+        <section className="rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
+          <ul className="space-y-1">
+            {stati.map((stato) => (
+              <li key={stato} className="flex flex-wrap gap-2 text-xs">
+                <span
+                  className={`font-bold uppercase ${
+                    missione.stato === stato ? 'text-sky-800' : 'text-slate-600'
+                  }`}
+                >
+                  {stato}
+                </span>
+                <span className="font-mono text-slate-500">
+                  {formatTimestamp(
+                    storico[stato] ??
+                      (stato === missione.stato
+                        ? missione.statoDa ?? missione.apertura
+                        : null),
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {tratte.length > 0 && (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase text-slate-600">Tratte / tappe</p>
+            <ul className="space-y-2">
+              {tratte.map((t) => (
+                <li key={t.id} className="rounded border border-slate-200 bg-white p-2 text-sm">
+                  <span className="font-mono text-xs text-slate-500">
+                    {formatTimestamp(t.quando)}
+                  </span>
+                  <p className="text-slate-800">{t.descrizione || '—'}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {evento && (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase text-slate-600">Evento collegato</p>
+            <p className="text-slate-800">{eventoColonnaIndirizzo(evento) || '—'}</p>
+            <p className="text-slate-600">
+              {evento.tipoEvento}
+              {evento.dettaglioEvento ? ` — ${evento.dettaglioEvento}` : ''}
+            </p>
+            {onOpenEvento && (
+              <button
+                type="button"
+                className={`${btnSecondary} mt-2`}
+                onClick={() => onOpenEvento(evento)}
+              >
+                Apri scheda evento
+              </button>
+            )}
+          </section>
+        )}
+        {mezzo && (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase text-slate-600">Mezzo</p>
+            <p className="font-mono font-semibold">{mezzo.sigla ?? mezzo._docId}</p>
+            <p>
+              {mezzo.tipo} · {mezzo.statoMezzo ?? 'Disponibile'}
+            </p>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
+        <span className="font-mono text-xl font-bold text-slate-900">{missione.idMissione}</span>
+        <MissionePmaInvioPsBadge missione={missione} className="text-xs" />
+        <span
+          className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(missione.stato)}`}
+        >
+          {missione.stato}
+        </span>
+        <span className="font-mono text-xs text-slate-500">{elapsed}</span>
+        <span className="text-xs text-slate-500">{operatoreCreatoLine(missione)}</span>
+        {aperturaMissioneInput}
+        <button type="button" className={`${btnDanger} ml-auto`} onClick={() => void handleEliminaMissione()}>
+          Elimina missione
+        </button>
+      </div>
+
+      <dl className="grid gap-2">
+        <Row label="Evento" value={missione.eventoCorrelato} mono />
+        <Row label="Mezzo" value={missione.mezzo} mono />
+        {(missioneInvioPs || ospedaleDest) && (
+          <Row label="Ospedale destinazione" value={ospedaleDest || '—'} />
+        )}
+        <Row label="Creato" value={operatoreCreatoLine(missione)} />
+        <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
+        <Row label="Equipaggio" value={missione.equipaggio || '—'} />
+      </dl>
+
+      {missioneInvioPs && ospedaleDest && (
+        <section className="rounded border border-violet-300 bg-violet-50 p-3">
+          <p className="text-xs font-bold uppercase text-violet-900">Destinazione PS</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{ospedaleDest}</p>
+        </section>
+      )}
+
+      <MissionePazienteRiferimentoSection
+        riferimento={missione.pazienteRiferimento}
+        onOpenPaziente={onOpenPaziente}
+      />
+      <MissionePazientiTrasportoSection
+        pazienti={pazientiTrasporto}
+        onOpenPaziente={onOpenPaziente}
+      />
+
+      <section className="rounded border border-slate-200 bg-slate-50 p-3">
+        <p className="mb-3 text-xs font-bold uppercase text-slate-600">Codici colore</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">E — Evento</p>
+            <ColoreIndicator colore={resolveCodiceColoreEvento(evento)} size="lg" />
+          </div>
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">M — Missione</p>
+            <ColoreSelectButtons
+              value={coloreM}
+              onChange={(c) => void patchColoreMissione(c)}
+            />
+          </div>
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
+            <p className="mb-1 text-[10px] text-slate-500">
+              Copiato dal colore paziente. Modificabile manualmente.
+            </p>
+            <ColoreSelectButtons
+              value={missione.codiceColoreTrasporto ?? null}
+              onChange={(c) => void patchColoreTrasporto(c)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <FormField label="Esito missione">
+        <select
+          className={selectClass}
+          value={normalizeEsitoMissione(missione.esitoMissione ?? ESITO_MISSIONE_DEFAULT)}
+          onChange={(e) => void patchEsitoMissione(e.target.value, missione.esitoMissioneAltro)}
+        >
+          {ESITI_MISSIONE.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+        {normalizeEsitoMissione(missione.esitoMissione) === 'ALTRO' && (
+          <textarea
+            className={`${inputClass} mt-2`}
+            rows={2}
+            placeholder="Note esito"
+            defaultValue={missione.esitoMissioneAltro ?? ''}
+            onBlur={(e) => {
+              const v = e.target.value;
+              if (v === (missione.esitoMissioneAltro ?? '')) return;
+              void patchEsitoMissione('ALTRO', v);
+            }}
+          />
+        )}
+        {esitoTerminaCopertura && (
+          <p className="mt-2 text-xs text-amber-800">
+            Esito «{normalizeEsitoMissione(missione.esitoMissione)}»: missione chiusa e mezzo liberato per
+            un nuovo ingaggio.
+          </p>
+        )}
+      </FormField>
+
+      <FormField label="Note missione">
+        <textarea
+          key={missione._docId}
+          className={inputClass}
+          rows={3}
+          defaultValue={missione.noteMissione ?? ''}
+          onBlur={async (e) => {
+            const v = e.target.value;
+            if (v === (missione.noteMissione ?? '')) return;
+            try {
+              await patchMissione(
+                manifestationId,
+                missione._docId,
+                { noteMissione: v },
+                missione.mezzo,
+              );
+            } catch (err) {
+              notifyFirestoreError(err);
+            }
+          }}
+        />
+      </FormField>
+
+      <MissioneEccezioniPanel
+        manifestationId={manifestationId}
+        missione={missione}
+        eventi={eventi}
+        mezzi={mezzi}
+        pazienti={pazienti}
+        allMissioni={allMissioni ?? []}
+        existingEventi={existingEventi ?? eventi ?? []}
+      />
+
+      <section className="rounded border border-slate-200 bg-slate-50 p-3">
+        <p className="mb-1 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
+        <p className="mb-3 text-[11px] text-slate-500">
+          Modifica liberamente data/ora di ogni stato (anche non in ordine cronologico): aggiorna solo
+          la cronologia, non lo stato operativo corrente. L&apos;orologio imposta invece lo stato
+          attuale della missione (con effetti operativi legati a quello stato).
+          La data/ora di apertura (creazione) si modifica in testata: deve restare coerente con evento,
+          stati e tappe.
+          {statoMissioneBloccato && ' Missione terminata: gli stati non sono più modificabili.'}
+        </p>
+        <ul className="space-y-2">
+          {stati.map((stato) => {
+            const isCurrent = missione.stato === stato;
+            return (
+              <li
+                key={stato}
+                className={`grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,auto)_1fr] sm:items-center ${
+                  isCurrent ? 'rounded border border-sky-200 bg-sky-50/80 p-2' : ''
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`text-xs font-bold uppercase ${
+                      isCurrent ? 'text-sky-800' : 'text-slate-600'
+                    }`}
+                  >
+                    {stato}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={statoMissioneBloccato}
+                    className="inline-flex shrink-0 items-center justify-center rounded border border-slate-300 bg-white p-1 text-slate-600 shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    title={
+                      statoMissioneBloccato
+                        ? 'Missione terminata'
+                        : `Imposta stato «${stato}» adesso`
+                    }
+                    onClick={() => void impostaStatoOra(stato)}
+                  >
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                    <span className="sr-only">Imposta {stato} adesso</span>
+                  </button>
+                </div>
+                <input
+                  type="datetime-local"
+                  className={`${inputClass} font-mono text-xs`}
+                  value={toDatetimeLocalValue(
+                    storico[stato] ??
+                      (stato === missione.stato
+                        ? missione.statoDa ?? missione.apertura
+                        : null),
+                  )}
+                  onBlur={(e) => onStoricoBlur(stato, e.target.value)}
+                  title="Modifica data/ora; al cambio stato viene impostata automaticamente"
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <section className="rounded border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase text-slate-600">Tratte / tappe</p>
+          <button type="button" className={btnSecondary} onClick={() => void aggiungiTratta()}>
+            Aggiungi tratta
+          </button>
+        </div>
+        <p className="mb-3 text-[11px] text-slate-500">
+          Registra passaggi operativi con orario e descrizione (es. rientro in sede per rifornimento,
+          sosta, cambio equipaggio). Non sostituiscono gli stati missione.
+        </p>
+        {tratte.length === 0 ? (
+          <p className="text-sm text-slate-500">Nessuna tratta registrata.</p>
+        ) : (
+          <ul className="space-y-3">
+            {tratte.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,auto)_1fr_auto] sm:items-start">
+                  <FormField label="Data e ora" className="sm:min-w-[200px]">
+                    <input
+                      type="datetime-local"
+                      className={`${inputClass} font-mono text-xs`}
+                      defaultValue={toDatetimeLocalValue(t.quando)}
+                      key={`${t.id}-${t.quando.getTime()}`}
+                      onBlur={(e) => void onTrattaQuandoBlur(t.id, e.target.value)}
+                    />
+                  </FormField>
+                  <FormField label="Descrizione">
+                    <input
+                      type="text"
+                      className={inputClass}
+                      defaultValue={t.descrizione}
+                      placeholder="Es. Mezzo rientra in sede per rifornirsi"
+                      onBlur={(e) => void onTrattaDescrizioneBlur(t.id, e.target.value)}
+                    />
+                  </FormField>
+                  <div className="flex items-end sm:justify-end">
+                    <button
+                      type="button"
+                      className={`${btnDanger} whitespace-nowrap`}
+                      onClick={() => void rimuoviTratta(t.id)}
+                    >
+                      Rimuovi
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {evento && (
+        <section className="rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-600">Evento collegato</p>
+          <p className="text-slate-800">{evento.indirizzo || '—'}</p>
+          <p className="text-slate-600">
+            {evento.tipoEvento}
+            {evento.dettaglioEvento ? ` — ${evento.dettaglioEvento}` : ''}
+          </p>
+          <button type="button" className={`${btnSecondary} mt-2`} onClick={() => onOpenEvento?.(evento)}>
+            Apri scheda evento
+          </button>
+        </section>
+      )}
+
+      {mezzo && (
+        <section className="rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-bold uppercase text-slate-600">Mezzo</p>
+          <p className="font-mono font-semibold">{mezzo.sigla ?? mezzo._docId}</p>
+          <p>
+            {mezzo.tipo} · {mezzo.statoMezzo ?? 'Disponibile'}
+          </p>
+        </section>
+      )}
+
+      <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+        <MissioneTelegramSendButton
+          missione={missione}
+          evento={evento}
+          eventi={eventi}
+          telegramEnabled={telegramEnabled}
+          className="px-3 py-2 text-xs"
+        />
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, mono }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className={`col-span-2 text-slate-900 ${mono ? 'font-mono' : ''}`}>{value}</dd>
+    </div>
+  );
+}

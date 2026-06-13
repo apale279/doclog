@@ -1,0 +1,307 @@
+/** Tipo origine paziente (campo Firestore `tipoPz`, non mostrato in UI centrale). */
+export const TIPO_PZ = {
+  CENTRALE: 'CENTRALE',
+  PMA: 'PMA',
+  CODICE_MINORE: 'CODICE MINORE',
+};
+
+/** Stato operativo lato PMA (campo Firestore `statoPzPma`). */
+export const STATO_PZ_PMA = {
+  IN_ARRIVO: 'IN ARRIVO',
+  IN_ATTESA: 'IN ATTESA',
+  IN_CARICO: 'in carico',
+  DIMESSO: 'DIMESSO',
+};
+
+export const STATO_PZ_PMA_LABEL = {
+  [STATO_PZ_PMA.IN_ARRIVO]: 'In arrivo',
+  [STATO_PZ_PMA.IN_ATTESA]: 'In attesa',
+  [STATO_PZ_PMA.IN_CARICO]: 'In carico',
+  [STATO_PZ_PMA.DIMESSO]: 'Dimesso',
+};
+
+/** Stati PMA in cui il paziente è considerato «aperto» per il modulo PMA. */
+export const STATI_PZ_PMA_APERTI = [
+  STATO_PZ_PMA.IN_ARRIVO,
+  STATO_PZ_PMA.IN_ATTESA,
+  STATO_PZ_PMA.IN_CARICO,
+];
+
+export function normalizeTipoPz(value) {
+  const v = String(value ?? '').trim().toUpperCase();
+  if (v === TIPO_PZ.PMA) return TIPO_PZ.PMA;
+  if (v === TIPO_PZ.CODICE_MINORE || v === 'CODICE_MINORE') return TIPO_PZ.CODICE_MINORE;
+  return TIPO_PZ.CENTRALE;
+}
+
+export function isPazienteCodiceMinore(paziente) {
+  return normalizeTipoPz(paziente?.tipoPz) === TIPO_PZ.CODICE_MINORE;
+}
+
+export function normalizeStatoPzPma(value) {
+  const v = String(value ?? '').trim();
+  const upper = v.toUpperCase();
+  if (v === STATO_PZ_PMA.IN_ARRIVO || upper === 'IN ARRIVO') return STATO_PZ_PMA.IN_ARRIVO;
+  if (v === STATO_PZ_PMA.IN_ATTESA || upper === 'IN ATTESA') return STATO_PZ_PMA.IN_ATTESA;
+  if (v === STATO_PZ_PMA.IN_CARICO || upper === 'IN CARICO') return STATO_PZ_PMA.IN_CARICO;
+  if (v === STATO_PZ_PMA.DIMESSO || upper === 'DIMESSO') return STATO_PZ_PMA.DIMESSO;
+  return null;
+}
+
+export function statoPzPmaLabel(stato) {
+  const n = normalizeStatoPzPma(stato);
+  if (!n) return null;
+  return STATO_PZ_PMA_LABEL[n] ?? n;
+}
+
+/** Paziente con scheda PMA (inviato da centrale o autopresentato). */
+export function pazienteHaSchedaPma(paziente) {
+  if (!paziente) return false;
+  if (isPazienteCodiceMinore(paziente)) return false;
+  if (normalizeTipoPz(paziente.tipoPz) === TIPO_PZ.PMA) return true;
+  return pazienteHaDestinazionePma(paziente);
+}
+
+/** Paziente con percorso PMA (tenda, autopresentato, codice minore o già dimesso). */
+export function pazientePassatoDalPma(paziente) {
+  if (!paziente) return false;
+  if (isPazienteCodiceMinore(paziente)) return true;
+  if (pazienteHaSchedaPma(paziente)) return true;
+  if (normalizeStatoPzPma(paziente.statoPzPma)) return true;
+  return Boolean(paziente.pmaScheda && Object.keys(paziente.pmaScheda).length > 0);
+}
+
+export function pazientePmaAperto(paziente) {
+  const stato = normalizeStatoPzPma(paziente?.statoPzPma);
+  return stato != null && STATI_PZ_PMA_APERTI.includes(stato);
+}
+
+export function pazientePmaChiuso(paziente) {
+  return normalizeStatoPzPma(paziente?.statoPzPma) === STATO_PZ_PMA.DIMESSO;
+}
+
+export function isPazienteOriginePma(paziente) {
+  return normalizeTipoPz(paziente?.tipoPz) === TIPO_PZ.PMA;
+}
+
+/** Scheda PMA consultabile (qualsiasi paziente con modulo PMA). */
+export function canViewPmaScheda(paziente) {
+  return pazienteHaSchedaPma(paziente);
+}
+
+export function canViewPmaCodiceMinoreScheda(paziente) {
+  return isPazienteCodiceMinore(paziente);
+}
+
+/** Paziente convertibile in codice minore dal desk PMA. */
+export function canConvertToCodiceMinore(paziente) {
+  if (!paziente || isPazienteCodiceMinore(paziente)) return false;
+  if (pazientePmaChiuso(paziente)) return false;
+  const stato = normalizeStatoPzPma(paziente.statoPzPma);
+  if (!stato || !STATI_PZ_PMA_APERTI.includes(stato)) return false;
+  if (normalizeTipoPz(paziente.tipoPz) === TIPO_PZ.PMA) return true;
+  return pazienteHaDestinazionePma(paziente) || pazienteHaSchedaPma(paziente);
+}
+
+/** Modifica cartella/dimissione PMA. */
+export function canEditPmaSchedaDoc(paziente) {
+  return normalizeStatoPzPma(paziente?.statoPzPma) === STATO_PZ_PMA.IN_CARICO;
+}
+
+/** Colonna «Stato» in elenco pazienti. */
+export { displayStatoPazienteInLista } from './pazienteStati';
+
+/** Colonna «Evento» in elenco per autopresentati (nessun evento operativo collegato). */
+export function displayEventoPazienteInLista(paziente, evento) {
+  if (isPazienteCodiceMinore(paziente)) return 'Codice minore PMA';
+  if (isPazienteOriginePma(paziente)) {
+    const scheda = paziente.pmaScheda ?? {};
+    const tipo = scheda.tipo_evento ?? '';
+    const det = scheda.dettaglio_evento ?? '';
+    if (tipo && det) return `${tipo} — ${det}`;
+    if (tipo) return tipo;
+    return 'Autopresentato PMA';
+  }
+  return evento?.idEvento ?? paziente?.eventoCorrelato ?? '—';
+}
+
+export function listaPmaImpostazioni(impostazioni) {
+  return (impostazioni?.pma ?? [])
+    .map((p) => ({
+      id: String(p?.id ?? '').trim(),
+      nome: String(p?.nome ?? '').trim(),
+      indirizzo: p?.indirizzo ?? '',
+      luogo_fisico: p?.luogo_fisico ?? '',
+      coordinate: p.coordinate ?? null,
+      ipadUser: p?.ipadUser ?? '',
+      ipadPassword: p?.ipadPassword ?? '',
+      ipadEmail: p?.ipadEmail ?? '',
+    }))
+    .filter((p) => p.id && p.nome)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+}
+
+export function listaOspedaliDestinazione(impostazioni) {
+  return (impostazioni?.listaOspedali ?? [])
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+}
+
+export function findPmaById(impostazioni, pmaId) {
+  const id = String(pmaId ?? '').trim();
+  if (!id) return null;
+  const raw = findPmaRawEntry(impostazioni, id);
+  if (!raw) return null;
+  return {
+    id: String(raw.id ?? '').trim(),
+    nome: String(raw.nome ?? '').trim(),
+    indirizzo: raw.indirizzo ?? '',
+    luogo_fisico: raw.luogo_fisico ?? '',
+    coordinate: raw.coordinate ?? null,
+    ipadUser: raw.ipadUser ?? '',
+    ipadPassword: raw.ipadPassword ?? '',
+    ipadEmail: raw.ipadEmail ?? '',
+    grigliaPostiLetto: raw.grigliaPostiLetto ?? null,
+    postiLettoLabels: raw.postiLettoLabels ?? {},
+  };
+}
+
+/** Voce PMA completa da impostazioni (include griglia posti letto). */
+export function findPmaRawEntry(impostazioni, pmaId) {
+  const id = String(pmaId ?? '').trim();
+  if (!id) return null;
+  const list = impostazioni?.pma ?? [];
+  const exact = list.find((p) => String(p?.id ?? '').trim() === id);
+  if (exact) return exact;
+  const lower = id.toLowerCase();
+  return (
+    list.find((p) => String(p?.id ?? '').toLowerCase() === lower) ??
+    list.find((p) => String(p?.nome ?? '').trim().toLowerCase() === lower) ??
+    null
+  );
+}
+
+export function findPmaByNome(impostazioni, nome) {
+  const key = String(nome ?? '').trim().toLowerCase();
+  if (!key) return null;
+  return listaPmaImpostazioni(impostazioni).find((p) => p.nome.toLowerCase() === key) ?? null;
+}
+
+/** Campi destinazione da salvare al cambio select ospedale/PMA. */
+export function resolveDestinazionePaziente(nomeSelezionato, impostazioni) {
+  const nome = String(nomeSelezionato ?? '').trim();
+  if (!nome) {
+    return {
+      ospedaleDestinazione: '',
+      destinazionePmaId: '',
+      pmaId: '',
+      statoPzPma: null,
+    };
+  }
+  const pma = findPmaByNome(impostazioni, nome);
+  if (pma) {
+    return {
+      ospedaleDestinazione: pma.nome,
+      destinazionePmaId: pma.id,
+      pmaId: pma.id,
+    };
+  }
+  return {
+    ospedaleDestinazione: nome,
+    destinazionePmaId: '',
+    pmaId: '',
+    statoPzPma: null,
+  };
+}
+
+export function pazienteHaDestinazionePma(paziente) {
+  return Boolean(String(paziente?.destinazionePmaId ?? '').trim());
+}
+
+export function pazienteDimessoInPmaDesk(paziente, pmaId) {
+  const pid = String(pmaId ?? '').trim();
+  if (!pid || !paziente) return false;
+  if (isPazienteCodiceMinore(paziente)) return false;
+  if (normalizeStatoPzPma(paziente.statoPzPma) !== STATO_PZ_PMA.DIMESSO) return false;
+  if (normalizeTipoPz(paziente.tipoPz) === TIPO_PZ.PMA) {
+    return String(paziente.pmaId ?? '').trim() === pid;
+  }
+  return String(paziente.destinazionePmaId ?? paziente.pmaId ?? '').trim() === pid;
+}
+
+/** Visibile nella dashboard PMA (esclusi i dimessi). */
+export function pazienteVisibileInPmaDesk(paziente, pmaId) {
+  const pid = String(pmaId ?? '').trim();
+  if (!pid || !paziente) return false;
+
+  const stato = normalizeStatoPzPma(paziente.statoPzPma);
+  if (stato === STATO_PZ_PMA.DIMESSO) return false;
+
+  if (normalizeTipoPz(paziente.tipoPz) === TIPO_PZ.PMA) {
+    return String(paziente.pmaId ?? '').trim() === pid;
+  }
+
+  /** Codici minori: gestiti solo dalla tabella dedicata, non nelle colonne desk. */
+  if (isPazienteCodiceMinore(paziente)) return false;
+
+  if (String(paziente.destinazionePmaId ?? '').trim() !== pid) return false;
+  /** Legacy: destinazione PMA senza statoPzPma → visibile come in arrivo. */
+  if (stato == null) return true;
+  return STATI_PZ_PMA_APERTI.includes(stato);
+}
+
+export function pmaIdPerPaziente(paziente) {
+  return String(paziente?.pmaId ?? paziente?.destinazionePmaId ?? '').trim();
+}
+
+/** Pazienti «codice minore» del PMA (tabella astanteria). */
+export function pazientiCodiceMinorePerPma(pazienti, pmaId) {
+  const pid = String(pmaId ?? '').trim();
+  if (!pid) return [];
+  return (pazienti ?? []).filter(
+    (p) =>
+      isPazienteCodiceMinore(p) &&
+      String(p.pmaId ?? p.destinazionePmaId ?? '').trim() === pid,
+  );
+}
+
+/** Operatore tenda: accessType PMA, oppure pmaScopeId / pmaRank impostati (salvo Centrale esplicita). */
+export function isPmaOperatorProfile(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  const tipo = String(profile.accessType ?? '')
+    .trim()
+    .toUpperCase();
+  if (tipo === 'CENTRALE') return false;
+  if (tipo === 'PMA') return true;
+  if (String(profile.pmaScopeId ?? '').trim()) return true;
+  const rank = String(profile.pmaRank ?? '')
+    .trim()
+    .toUpperCase();
+  return (
+    rank === 'MEDICO' ||
+    rank === 'INFERMIERE' ||
+    rank === 'SOCCORRITORE' ||
+    rank === 'TRIAGE'
+  );
+}
+
+export function userHasFullCentraleAccess(profile, isSuperAdmin = false) {
+  if (isSuperAdmin) return true;
+  if (!profile) return false;
+  if (isPmaOperatorProfile(profile)) return false;
+  const tipo = String(profile.accessType ?? '')
+    .trim()
+    .toUpperCase();
+  if (tipo === 'CENTRALE') return true;
+  /** Legacy: account centrale creato prima di accessType / rank PMA (allineato a requireWebAdmin). */
+  if (!tipo && !String(profile.pmaScopeId ?? '').trim()) return true;
+  return false;
+}
+
+export function effectivePmaScopeId(profile, isSuperAdmin) {
+  if (isSuperAdmin) return null;
+  if (!isPmaOperatorProfile(profile)) return null;
+  const id = String(profile?.pmaScopeId ?? '').trim();
+  return id || null;
+}

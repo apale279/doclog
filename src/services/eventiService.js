@@ -1,0 +1,276 @@
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
+import { db } from '../firebaseConfig';
+import { eventiPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
+import { deletePazienteCascade } from './pazientiService';
+import { mezzoHaMissioneAttiva } from '../lib/mezzoMissione';
+import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
+import {
+  fieldsChiusuraMissioneSuEventoForzato,
+  missioneRichiedeChiusuraSuEventoForzato,
+} from '../lib/eventoChiusuraMissioni';
+import { newIdUnivoco } from '../lib/ids';
+import { allocateProgressiveId } from './progressiveIdService';
+import { normalizeCodiceColore } from '../lib/codiciColore';
+import { mergeOperatoreCreatoPayload, stripOperatoreCreatoFromPatch } from '../lib/operatoreAudit';
+import { omitUndefinedFields } from '../lib/firestorePatch';
+import { missioniPerEvento } from '../lib/eventoLinks';
+import { patchMissione } from './missioniService';
+import { patchMezzo } from './mezziService';
+import { scheduleNotifyTelegramStatoFromCentrale } from '../lib/telegramSideEffects';
+
+export async function fetchMissioniCollegateEvento(manifestationId, eventoDocId) {
+  const docId = String(eventoDocId ?? '').trim();
+  if (!docId) {
+    throw new Error('Evento non valido. Chiudi la scheda e riaprila dall\'elenco eventi.');
+  }
+  const eventoSnap = await getDoc(doc(db, ...eventiPath(manifestationId), docId));
+  if (!eventoSnap.exists()) {
+    throw new Error(
+      'Evento non trovato. Potrebbe essere stato eliminato: chiudi la scheda, verifica nell\'elenco eventi e riprova.',
+    );
+  }
+  const evento = { _docId: eventoSnap.id, ...eventoSnap.data() };
+
+  const missioniCol = collection(db, ...missioniPath(manifestationId));
+  const missionSnaps = await Promise.all([
+    evento.idUnivoco
+      ? getDocs(query(missioniCol, where('eventoIdUnivoco', '==', evento.idUnivoco)))
+      : Promise.resolve({ docs: [] }),
+    evento.idEvento
+      ? getDocs(query(missioniCol, where('eventoCorrelato', '==', evento.idEvento)))
+      : Promise.resolve({ docs: [] }),
+  ]);
+
+  const missioniById = new Map();
+  for (const snap of missionSnaps) {
+    for (const d of snap.docs) {
+      missioniById.set(d.id, { _docId: d.id, ...d.data() });
+    }
+  }
+  return missioniPerEvento([...missioniById.values()], evento);
+}
+
+async function flushBatchDeletes(refs) {
+  if (!refs.length) return;
+  let batch = writeBatch(db);
+  let ops = 0;
+  for (const ref of refs) {
+    batch.delete(ref);
+    ops += 1;
+    if (ops >= 450) {
+      await batch.commit();
+      batch = writeBatch(db);
+      ops = 0;
+    }
+  }
+  if (ops > 0) await batch.commit();
+}
+
+function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
+  const data = {
+    manifestationId,
+    idUnivoco,
+    idEvento,
+    apertura: serverTimestamp(),
+    stato: true,
+    indirizzo: payload.indirizzo ?? '',
+    luogo_fisico: payload.luogo_fisico ?? '',
+    chiamante: payload.chiamante ?? '',
+    tipoEvento: payload.tipoEvento ?? '',
+    dettaglioEvento: payload.dettaglioEvento ?? '',
+    luogo: payload.luogo ?? '',
+    tipoLuogo: payload.tipoLuogo ?? '',
+    meteo: payload.meteo ?? '',
+    colore: normalizeCodiceColore(payload.colore),
+    noteEvento: payload.noteEvento ?? '',
+  };
+  if (payload.coordinate != null) {
+    data.coordinate = payload.coordinate;
+  }
+  if (payload.eventoGenitoreIdUnivoco) {
+    data.eventoGenitoreIdUnivoco = payload.eventoGenitoreIdUnivoco;
+  }
+  if (payload.eventoGenitoreCorrelato != null && payload.eventoGenitoreCorrelato !== '') {
+    data.eventoGenitoreCorrelato = payload.eventoGenitoreCorrelato;
+  }
+  if (payload.origineEccezione) {
+    data.origineEccezione = payload.origineEccezione;
+  }
+  if (payload.sempreAperto === true) {
+    data.sempreAperto = true;
+    data.operativoAutoCloseSospeso = true;
+  }
+  Object.assign(data, mergeOperatoreCreatoPayload(payload));
+  return data;
+}
+
+async function deleteRecordiCollegati(manifestationId, idUnivoco, idEvento) {
+  const [missioniSnap, pazientiSnap] = await Promise.all([
+    getDocs(collection(db, ...missioniPath(manifestationId))),
+    getDocs(collection(db, ...pazientiPath(manifestationId))),
+  ]);
+
+  const delMissioni = missioniSnap.docs.filter((d) => {
+    const m = d.data();
+    const byUid = Boolean(idUnivoco && m.eventoIdUnivoco && m.eventoIdUnivoco === idUnivoco);
+    const byDisplay = Boolean(idEvento && m.eventoCorrelato === idEvento);
+    return byUid || byDisplay;
+  });
+
+  const delPazienti = pazientiSnap.docs.filter((d) => {
+    const p = d.data();
+    const byUid = Boolean(idUnivoco && p.eventoIdUnivoco && p.eventoIdUnivoco === idUnivoco);
+    const byDisplay = Boolean(idEvento && p.eventoCorrelato === idEvento);
+    return byUid || byDisplay;
+  });
+
+  const deletedMissionIds = new Set(delMissioni.map((d) => d.id));
+  const mezziCoinvolti = [
+    ...new Set(delMissioni.map((d) => d.data().mezzo).filter(Boolean)),
+  ];
+  const missioniRimanenti = missioniSnap.docs
+    .filter((d) => !deletedMissionIds.has(d.id))
+    .map((d) => ({ _docId: d.id, ...d.data() }));
+
+  await flushBatchDeletes(delMissioni.map((d) => d.ref));
+
+  for (const sigla of mezziCoinvolti) {
+    if (!mezzoHaMissioneAttiva(sigla, missioniRimanenti)) {
+      await patchMezzo(manifestationId, sigla, { statoMezzo: MEZZO_STATO_DISPONIBILE });
+    }
+  }
+
+  for (const d of delPazienti) {
+    await deletePazienteCascade(manifestationId, d.id);
+  }
+}
+
+export async function createEvento(manifestationId, payload, existingEventi) {
+  const idEvento = await allocateProgressiveId(
+    manifestationId,
+    'E',
+    'eventi',
+    existingEventi,
+    'idEvento',
+  );
+  const idUnivoco = newIdUnivoco();
+  const colRef = collection(db, ...eventiPath(manifestationId));
+  const docRef = await addDoc(
+    colRef,
+    buildEventoPayload(manifestationId, idEvento, idUnivoco, payload),
+  );
+  return { docId: docRef.id, idEvento, idUnivoco };
+}
+
+export async function patchEvento(manifestationId, docId, fields) {
+  if (!fields || Object.keys(fields).length === 0) return;
+  const docIdTrim = String(docId ?? '').trim();
+  if (!docIdTrim) {
+    throw new Error('Evento non valido. Chiudi la scheda e riaprila dall\'elenco eventi.');
+  }
+  const payload = omitUndefinedFields(stripOperatoreCreatoFromPatch(fields));
+  if (Object.prototype.hasOwnProperty.call(payload, 'colore')) {
+    payload.colore = normalizeCodiceColore(payload.colore);
+  }
+  if (Object.keys(payload).length === 0) return;
+  const docRef = doc(db, ...eventiPath(manifestationId), docIdTrim);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) {
+    throw new Error(
+      'Evento non trovato. Potrebbe essere stato eliminato: chiudi la scheda e verifica nell\'elenco eventi.',
+    );
+  }
+  await updateDoc(docRef, payload);
+}
+
+/** Chiusura manuale dopo fase operativa terminata (rimozione da dashboard). */
+export async function terminaEventoOperatore(manifestationId, eventoDocId) {
+  await patchEvento(manifestationId, eventoDocId, {
+    stato: false,
+    chiusuraIl: serverTimestamp(),
+    operativoAutoCloseSospeso: deleteField(),
+  });
+}
+
+/** Ripristina operatività evento (prima di «Termina evento» / archiviazione). */
+export async function riapriEventoOperatore(manifestationId, eventoDocId) {
+  await patchEvento(manifestationId, eventoDocId, {
+    operativoTerminato: false,
+    operativoTerminatoIl: deleteField(),
+    operativoAutoCloseSospeso: true,
+  });
+}
+
+/**
+ * Chiusura forzata evento: note obbligatorie, tutte le missioni collegate → FINE MISSIONE + mezzi liberi.
+ */
+export async function closeEventoForzato(
+  manifestationId,
+  eventoDocId,
+  missioniCollegate,
+  noteChiusura,
+  tipoChiusuraEvento,
+) {
+  const note = noteChiusura?.trim();
+  if (!note) {
+    throw new Error('Inserisci una nota che spiega il motivo della chiusura.');
+  }
+  if (!eventoDocId) {
+    throw new Error('Evento non valido.');
+  }
+
+  const missioniFresh = await fetchMissioniCollegateEvento(manifestationId, eventoDocId);
+  const missioniDaChiudere = missioniFresh.filter(missioneRichiedeChiusuraSuEventoForzato);
+  const closeMissioni = missioniDaChiudere.map((mis) => {
+    const fields = fieldsChiusuraMissioneSuEventoForzato(mis);
+    return patchMissione(manifestationId, mis._docId, fields, mis.mezzo, {
+      skipTelegramNotify: true,
+    });
+  });
+
+  await Promise.all(closeMissioni);
+
+  for (const mis of missioniDaChiudere) {
+    scheduleNotifyTelegramStatoFromCentrale(manifestationId, mis._docId);
+  }
+
+  await patchEvento(manifestationId, eventoDocId, {
+    stato: false,
+    noteChiusura: note,
+    chiusuraIl: serverTimestamp(),
+    ...(tipoChiusuraEvento ? { tipoChiusuraEvento } : {}),
+  });
+}
+
+export async function deleteEvento(manifestationId, docId) {
+  const docIdTrim = String(docId ?? '').trim();
+  if (!docIdTrim) {
+    throw new Error('Evento non valido.');
+  }
+  const docRef = doc(db, ...eventiPath(manifestationId), docIdTrim);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return;
+  const { idUnivoco, idEvento } = snap.data();
+  const uid = String(idUnivoco ?? '').trim();
+  const idEv = String(idEvento ?? '').trim();
+  if (!uid && !idEv) {
+    throw new Error(
+      'Evento senza identificativi di collegamento. Chiudi manualmente missioni e pazienti collegati, poi riprova o contatta l\'amministratore.',
+    );
+  }
+  await deleteRecordiCollegati(manifestationId, uid || undefined, idEv || undefined);
+  await deleteDoc(docRef);
+}

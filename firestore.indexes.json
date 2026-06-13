@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "pazienti",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mezzo", "order": "ASCENDING" },
+        { "fieldPath": "esito", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

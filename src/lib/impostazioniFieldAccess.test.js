@@ -1,0 +1,47 @@
+import { describe, expect, it } from 'vitest';
+import {
+  IMPOSTAZIONI_NESTED_OBJECT_FIELDS,
+  impostazioniMapFieldPath,
+  isImpostazioniFieldSaveBlocked,
+  isImpostazioniNestedObjectField,
+  isImpostazioniTransactionalArrayField,
+  readImpostazioniFieldForDisplay,
+  readImpostazioniFieldRaw,
+} from './impostazioniFieldAccess.js';
+
+describe('impostazioniFieldAccess', () => {
+  it('blocca campi map annidate e array transazionali', () => {
+    expect(isImpostazioniNestedObjectField('pmaClinica')).toBe(true);
+    expect(isImpostazioniTransactionalArrayField('stazionamenti')).toBe(true);
+    expect(isImpostazioniFieldSaveBlocked('pma')).toBe(true);
+    expect(isImpostazioniFieldSaveBlocked('listaOspedali')).toBe(false);
+    expect(IMPOSTAZIONI_NESTED_OBJECT_FIELDS.has('dettagliPerTipoLuogo')).toBe(true);
+  });
+
+  it('read raw non applica default', () => {
+    expect(readImpostazioniFieldRaw({}, 'tipiLuogo')).toBeUndefined();
+    expect(readImpostazioniFieldRaw({ tipiLuogo: ['A'] }, 'tipiLuogo')).toEqual(['A']);
+  });
+
+  it('display applica default solo in lettura', () => {
+    const tipi = readImpostazioniFieldForDisplay({}, 'tipiLuogo');
+    expect(Array.isArray(tipi)).toBe(true);
+    expect(tipi.length).toBeGreaterThan(0);
+  });
+
+  it('dettagliPerTipoLuogo in display resta mappa vuota senza merge implicito', () => {
+    expect(readImpostazioniFieldForDisplay({}, 'dettagliPerTipoLuogo')).toEqual({});
+    expect(readImpostazioniFieldForDisplay({ dettagliPerTipoLuogo: { CASA: ['A'] } }, 'dettagliPerTipoLuogo')).toEqual({
+      CASA: ['A'],
+    });
+  });
+
+  it('path puntato rifiuta chiavi con punto', () => {
+    expect(() => impostazioniMapFieldPath('dettagliPerTipoLuogo', 'A.B')).toThrow(
+      /non può contenere il carattere «\.»/,
+    );
+    expect(impostazioniMapFieldPath('dettagliPerTipoLuogo', 'UFFICIO')).toBe(
+      'dettagliPerTipoLuogo.UFFICIO',
+    );
+  });
+});
