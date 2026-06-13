@@ -1,6 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // DOCLOG — configurazione Firebase dedicata (modificabile liberamente).
@@ -14,6 +18,12 @@ export const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// Cache offline persistente (IndexedDB): l'app funziona anche senza rete e
+// sincronizza automaticamente quando torna online. Multi-tab supportato.
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+

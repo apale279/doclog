@@ -4,9 +4,12 @@
  *  - elimina tutti i pazienti
  * Non tocca utenti, impostazioni cliniche, manifestazioni.
  *
- *   node scripts/reset-data.mjs
+ *   node scripts/reset-data.mjs <password-admin>
+ *
+ * Richiede l'accesso come admin@doclog.it (le regole Firestore richiedono login).
  */
 import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import {
   collection,
   deleteDoc,
@@ -16,6 +19,13 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+
+const ADMIN_EMAIL = 'admin@doclog.it';
+const ADMIN_PASSWORD = process.argv[2];
+if (!ADMIN_PASSWORD) {
+  console.error('Uso: node scripts/reset-data.mjs <password-admin>');
+  process.exit(1);
+}
 
 const config = {
   apiKey: 'AIzaSyD1BzDmjFDtU1BZGJKhTPRnMgvNwEgyDqc',
@@ -30,6 +40,7 @@ const TENANT = 'doclog';
 async function main() {
   const app = initializeApp(config);
   const db = getFirestore(app);
+  await signInWithEmailAndPassword(getAuth(app), ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // 1) Azzera farmaci consumati
   const impRef = doc(db, 'manifestazioni', TENANT, 'settings', 'impostazioni');

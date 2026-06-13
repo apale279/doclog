@@ -1,34 +1,47 @@
 rules_version = '2';
 
+// DOCLOG — accesso consentito solo a utenti autenticati.
+// I profili utente (rank) sono scrivibili solo dagli ADMIN: niente auto-promozione.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /manifestazioni/{manifestationId} {
-      allow read, write: if true;
-      match /{document=**} {
-        allow read, write: if true;
+
+    match /manifestazioni/{mid} {
+
+      function isSignedIn() {
+        return request.auth != null;
       }
-    }
-    match /impostazioni/{docId} {
-      allow read, write: if true;
-    }
-    match /eventi/{docId} {
-      allow read, write: if true;
-    }
-    match /missioni/{docId} {
-      allow read, write: if true;
-    }
-    match /mezzi/{docId} {
-      allow read, write: if true;
-    }
-    match /pazienti/{docId} {
-      allow read, write: if true;
-      /** Lock campi scheda PMA (presenza multi-operatore). */
-      match /pmaPresence/{lockDocId} {
-        allow read, write: if true;
+      function profilePath() {
+        return /databases/$(database)/documents/manifestazioni/$(mid)/userProfiles/$(request.auth.uid);
       }
-      match /valutazioniSoccorso/{valId} {
-        allow read, write: if true;
+      function isAdmin() {
+        return isSignedIn()
+          && exists(profilePath())
+          && get(profilePath()).data.rank == 'ADMIN';
       }
+      // Bootstrap: l'admin di default può sempre scrivere il proprio profilo.
+      function isBootstrapAdmin() {
+        return isSignedIn() && request.auth.token.email == 'admin@doclog.it';
+      }
+
+      // Documento manifestazione (tenant) — solo loggati.
+      allow read, write: if isSignedIn();
+
+      // Profili utente: lettura ai loggati, scrittura solo agli ADMIN.
+      match /userProfiles/{uid} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin() || isBootstrapAdmin();
+      }
+
+      // Dati operativi e impostazioni: solo utenti autenticati.
+      match /pazienti/{document=**} { allow read, write: if isSignedIn(); }
+      match /settings/{document=**} { allow read, write: if isSignedIn(); }
+      match /note_diario/{document=**} { allow read, write: if isSignedIn(); }
+      match /eventi/{document=**} { allow read, write: if isSignedIn(); }
+      match /missioni/{document=**} { allow read, write: if isSignedIn(); }
+      match /mezzi/{document=**} { allow read, write: if isSignedIn(); }
+      match /pma_firma_ipad/{document=**} { allow read, write: if isSignedIn(); }
+      match /pma_firma_coda/{document=**} { allow read, write: if isSignedIn(); }
+      match /telegram_users/{document=**} { allow read, write: if isSignedIn(); }
     }
   }
 }
