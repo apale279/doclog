@@ -219,12 +219,7 @@ export default function PmaDeskPage() {
       getPaziente={getPazienteById}
       onOpenPatient={apriCartella}
     />
-  ) : inCarico.length === 0 ? (
-    <p className="text-sm text-slate-500">
-      Nessun paziente in carico. Prendi in carico un paziente dalla colonna di sinistra
-      oppure attendi l&apos;aggiornamento ARRIVATO H dalla centrale.
-    </p>
-  ) : (
+  ) : inCarico.length === 0 ? null : (
     <ul className={`grid gap-3 overflow-y-auto ${fieldUx ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
       {inCarico.map((p) => (
         <li key={p._docId}>
@@ -370,17 +365,6 @@ export default function PmaDeskPage() {
             fieldUx ? 'grid-cols-1' : 'lg:grid-cols-[minmax(240px,280px)_1fr]'
           }`}
         >
-          {fieldUx ? (
-            <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
-              {!usaGrigliaLetti ? (
-                <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
-                  In carico ({inCarico.length})
-                </h2>
-              ) : null}
-              {inCaricoMain}
-            </main>
-          ) : null}
-
           <aside className="flex flex-col gap-4 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/30 p-3">
             <button
               type="button"
@@ -465,9 +449,9 @@ export default function PmaDeskPage() {
             </section>
           </aside>
 
-          {!fieldUx ? (
+          {!fieldUx || usaGrigliaLetti || inCarico.length > 0 ? (
             <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
-              {!usaGrigliaLetti ? (
+              {!usaGrigliaLetti && inCarico.length > 0 ? (
                 <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
                   In carico ({inCarico.length})
                 </h2>

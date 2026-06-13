@@ -121,8 +121,8 @@ export function DoclogLayout() {
   return (
     <div className="flex h-screen flex-col bg-slate-100">
       <PmaChiamaTriageAlertListener />
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+        <div className="flex min-w-0 items-center gap-2">
           <Link to={`/pma/${DOCLOG_PMA_ID}`} className="flex items-center gap-2">
             <img src="/logo.svg" alt="DOCLOG" className="h-8 w-8" decoding="async" />
             <span className="flex flex-col leading-none">
@@ -131,14 +131,14 @@ export function DoclogLayout() {
             </span>
           </Link>
           {attiva ? (
-            <span className="hidden truncate text-sm font-semibold text-slate-700 sm:inline">
+            <span className="hidden max-w-[40vw] truncate text-sm font-semibold text-slate-700 sm:inline">
               {attiva.nome}
             </span>
           ) : null}
         </div>
-        <nav className="flex items-center gap-1">
+        <nav className="flex flex-wrap items-center justify-end gap-1">
           <NavLink to={`/pma/${DOCLOG_PMA_ID}`} className={() => navLinkClass({ isActive: isDesk })}>
-            PPI
+            DASHBOARD
           </NavLink>
           <NavLink to="/pazienti" className={navLinkClass}>
             PAZIENTI

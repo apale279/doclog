@@ -1,9 +1,6 @@
-import { usePmaAccess } from '../../hooks/usePmaAccess'
 import { usePmaMobile } from './usePmaMobile'
 
-/** Layout touch PMA per operatori tenda (non centrale su PC). */
+/** DOCLOG: layout touch ottimizzato su qualsiasi smartphone/tablet stretto. */
 export function usePmaFieldUx(): boolean {
-  const { restrictedNav } = usePmaAccess()
-  const touch = usePmaMobile()
-  return Boolean(restrictedNav && touch)
+  return usePmaMobile()
 }

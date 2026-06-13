@@ -101,13 +101,13 @@ export default function DoclogPazientiPage() {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[420px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100 text-xs font-bold uppercase tracking-wide text-slate-600">
-                <th className="p-2">ID</th>
+                <th className="hidden p-2 sm:table-cell">ID</th>
                 <th className="p-2">Paziente</th>
                 <th className="p-2">Stato</th>
-                <th className="p-2">Data</th>
+                <th className="hidden p-2 sm:table-cell">Data</th>
                 <th className="p-2 text-right">Azione</th>
               </tr>
             </thead>
@@ -122,7 +122,9 @@ export default function DoclogPazientiPage() {
                     className="cursor-pointer border-b border-slate-100 odd:bg-white even:bg-slate-50/60 hover:bg-sky-50"
                     onClick={() => apri(p._docId)}
                   >
-                    <td className="p-2 font-mono text-xs text-slate-500">{p.idPaziente ?? '—'}</td>
+                    <td className="hidden p-2 font-mono text-xs text-slate-500 sm:table-cell">
+                      {p.idPaziente ?? '—'}
+                    </td>
                     <td className="p-2 font-semibold text-slate-900">{nomeCompleto}</td>
                     <td className="p-2">
                       <span
@@ -133,7 +135,7 @@ export default function DoclogPazientiPage() {
                         {statoPzPmaLabel(p.statoPzPma) ?? '—'}
                       </span>
                     </td>
-                    <td className="p-2 text-xs text-slate-600">{dataLeggibile(p)}</td>
+                    <td className="hidden p-2 text-xs text-slate-600 sm:table-cell">{dataLeggibile(p)}</td>
                     <td className="p-2 text-right">
                       <button
                         type="button"

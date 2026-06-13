@@ -62,7 +62,7 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
       <div className="p-8 text-center text-sm text-slate-600">
         Paziente non trovato.
         <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
-          Torna al PPI
+          Torna alla dashboard
         </button>
       </div>
     );
@@ -75,7 +75,7 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
         <div className="p-8 text-center text-sm text-amber-900">
           Questo paziente appartiene a un altro PPI.
           <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
-            Torna al PPI
+            Torna alla dashboard
           </button>
         </div>
       );
@@ -95,7 +95,7 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
       <div className="p-8 text-center text-sm text-amber-900">
         Modulo PPI non attivo per questo paziente.
         <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
-          Torna al PPI
+          Torna alla dashboard
         </button>
       </div>
     );
@@ -107,7 +107,7 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
       <div className="p-8 text-center text-sm text-amber-900">
         Questo paziente appartiene a un altro PPI.
         <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
-          Torna al PPI
+          Torna alla dashboard
         </button>
       </div>
     );
