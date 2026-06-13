@@ -9,6 +9,7 @@ import ImpostazioniPage from './pages/ImpostazioniPage';
 import PmaDeskPage from './pages/PmaDeskPage';
 import PmaPazientePage from './pages/PmaPazientePage';
 import DoclogPazientiPage from './pages/DoclogPazientiPage';
+import FirmaRefertoPage from './pages/FirmaRefertoPage';
 
 export default function App() {
   return (
@@ -21,6 +22,8 @@ export default function App() {
             path="pma/:pmaId/paziente/:pazienteDocId"
             element={<PmaPazientePage />}
           />
+          {/* Finestra firma per schermo esteso (iPad via Sidecar). */}
+          <Route path="firma/:pmaId/:pazienteDocId" element={<FirmaRefertoPage />} />
           <Route element={<DoclogLayout />}>
             <Route index element={<HomeGate />} />
             <Route path="pma" element={<Navigate to={`/pma/${DOCLOG_PMA_ID}`} replace />} />

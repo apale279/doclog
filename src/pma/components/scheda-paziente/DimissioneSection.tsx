@@ -503,6 +503,22 @@ export function DimissioneSection({
         <div>
           <div className="pma-section-hdr">Firma paziente (opzionale)</div>
           <div className="px-3 pb-3">
+            {dimissioneEdit ? (
+              <button
+                type="button"
+                onClick={() =>
+                  window.open(
+                    `/firma/${encodeURIComponent(p.id_pma)}/${encodeURIComponent(p.id)}`,
+                    'doclog-firma',
+                    'width=860,height=1180',
+                  )
+                }
+                className={`${btnSecondary} mb-3 w-full sm:w-auto`}
+                title="Apre una finestra firma da spostare sull'iPad (schermo esteso)"
+              >
+                🖊️ Apri firma su iPad / schermo esteso
+              </button>
+            ) : null}
             {dimissioneEdit && pmaIpadFirma ? (
               <div className="mb-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">
                 <p className="text-xs text-violet-950">
