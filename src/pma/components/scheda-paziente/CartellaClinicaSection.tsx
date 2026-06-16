@@ -24,13 +24,10 @@ import { useInfermiereSmartphone } from '@pma/hooks/useInfermiereSmartphoneStub'
 import { opToolbarBtnSm } from '@pma/cross/operativeTokens'
 import {
   ALLERGIE_VERIFICA_LABEL,
-  AVANZAMENTO_PMA_LABEL,
   allergieVerificaDisplay,
   type AllergieVerificaStato,
-  type AvanzamentoPma,
   type Paziente,
 } from '@pma/types/paziente'
-import { resolveAvanzamentoPma } from '../../../lib/pmaAvanzamento'
 import { EO_CLINICAL_TABS, type EoTabKey } from '@pma/lib/multilineList'
 import {
   EO_PAZIENTE_FIRESTORE_FIELDS,
@@ -568,19 +565,6 @@ export function CartellaClinicaSection({
 
   const farmaciSorted = useMemo(() => sortFarmaciChronoAsc(p.farmaci ?? []), [p.farmaci])
   const rivSorted = useMemo(() => sortRivDesc(p.rivalutazioni ?? []), [p.rivalutazioni])
-  const avanzamentoEffettivo = useMemo(
-    () =>
-      resolveAvanzamentoPma({
-        pmaScheda: {
-          allergie_verifica: p.allergie_verifica,
-          avanzamento_manuale: p.avanzamento_manuale,
-        },
-        allergie_verifica: p.allergie_verifica,
-        avanzamento_manuale: p.avanzamento_manuale,
-      }),
-    [p.allergie_verifica, p.avanzamento_manuale],
-  )
-
   const patchFarmaco = useCallback(
     (id: string, next: FarmacoSomministrato) => {
       const prev = p.farmaci.find((r) => r.id === id)
@@ -1392,37 +1376,6 @@ export function CartellaClinicaSection({
           </PmaMobileSheet>
         ) : null}
 
-        <PmaFieldGuard fieldKey="avanzamento_manuale">
-          <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
-            Avanzamento
-          </div>
-          <div className="p-3">
-            <label className="block max-w-md text-sm">
-              <span className="pma-field__label">Avanzamento</span>
-              <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                value={avanzamentoEffettivo}
-                disabled={!canEdit}
-                onChange={(e) => {
-                  void write({ avanzamento_manuale: e.target.value as AvanzamentoPma }).catch(
-                    () => undefined,
-                  )
-                }}
-              >
-                {(Object.keys(AVANZAMENTO_PMA_LABEL) as AvanzamentoPma[]).map((k) => (
-                  <option key={k} value={k}>
-                    {AVANZAMENTO_PMA_LABEL[k]}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-slate-500">
-                Predefinito: <strong>DA VEDERE</strong> finché non rispondi alla domanda sulle
-                allergie, poi <strong>IN VISITA</strong>. <strong>ATTESA DIMISSIONE</strong> va
-                impostato manualmente. Una scelta dal menu sovrascrive i valori automatici.
-              </p>
-            </label>
-          </div>
-        </PmaFieldGuard>
       </div>
     </section>
   )

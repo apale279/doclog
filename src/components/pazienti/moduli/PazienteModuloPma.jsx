@@ -401,9 +401,9 @@ export function PazienteModuloPma({
           manifestationId={manifestationId}
           paziente={rawDoc}
           pma={pma}
-          soreuReadOnly={!schedaModificabile}
+          soreuReadOnly={!canEditPma}
           onWriteSoreu={async (partial) => {
-            if (!schedaModificabile || !manifestationId || !patientDocId) return;
+            if (!canEditPma || !manifestationId || !patientDocId) return;
             if (!partial || Object.keys(partial).length === 0) return;
 
             const current = invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {});

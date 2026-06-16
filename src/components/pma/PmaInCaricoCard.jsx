@@ -3,7 +3,6 @@ import { formatTimestamp } from '../../utils/formatters';
 import { displayNomePazientePma } from '../../lib/pmaDisplayName';
 import { mostraPettoralePazientePma } from '../../lib/pmaDeskPatientInfo';
 import { pmaCodiceColoreCardClass } from '../../lib/pmaCodiceColoreUi';
-import { PmaAvanzamentoBadge } from './PmaAvanzamentoBadge';
 import { PmaOrigineEmoji } from './PmaOrigineEmoji';
 import { PmaPettoraleBadge } from './PmaPettoraleBadge';
 
@@ -34,7 +33,6 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
         </span>
         <span className="pma-patient-card__label font-mono text-slate-500">{paziente.idPaziente}</span>
         <PmaOrigineEmoji paziente={paziente} />
-        <PmaAvanzamentoBadge paziente={paziente} />
       </div>
       <p className="flex min-w-0 items-center gap-2 font-bold text-slate-900">
         {mostraPettoralePazientePma(paziente) ? (

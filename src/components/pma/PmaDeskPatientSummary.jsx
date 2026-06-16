@@ -9,7 +9,6 @@ import {
   pettoraleInlineSuRigaNomePma,
 } from '../../lib/pmaDeskPatientInfo';
 import { PMA_PAZIENTE_DRAG_MIME, setPmaPatientDragDocId } from '../../lib/pmaPostiLetto';
-import { PmaAvanzamentoBadge } from './PmaAvanzamentoBadge';
 import { PmaOrigineEmoji } from './PmaOrigineEmoji';
 import { PmaPettoraleBadge } from './PmaPettoraleBadge';
 
@@ -41,7 +40,6 @@ export function PmaDeskPatientSummary({
   showId = true,
   showOrigin = true,
   showColore = false,
-  showAvanzamento = true,
   showDirettoHArrow = false,
   missione = null,
   pettoraleHero = false,
@@ -92,7 +90,6 @@ export function PmaDeskPatientSummary({
           ) : null}
         </span>
       ) : null}
-      {showAvanzamento ? <PmaAvanzamentoBadge paziente={paziente} /> : null}
     </div>
   );
 
