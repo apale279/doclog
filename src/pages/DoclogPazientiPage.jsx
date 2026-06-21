@@ -9,6 +9,9 @@ import {
   normalizeStatoPzPma,
   statoPzPmaLabel,
 } from '../lib/pmaModule';
+import { filterPazientiVistiOggi } from '../lib/pazientiOggiFilter';
+import { exportPazientiOggiViewerZip } from '../services/pazientiOggiViewerExportService';
+import { btnSecondary } from '../components/ui/FormField';
 
 const STATO_BADGE = {
   [STATO_PZ_PMA.IN_ATTESA]: 'bg-orange-100 text-orange-900 border-orange-200',
@@ -39,6 +42,19 @@ export default function DoclogPazientiPage() {
   const { attiva, attivaId } = useManifestazioneAttiva();
   const [query, setQuery] = useState('');
   const [filtroStato, setFiltroStato] = useState('tutti');
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportMsg, setExportMsg] = useState(null);
+  const [exportErr, setExportErr] = useState(null);
+
+  const pazientiManifestazione = useMemo(() => {
+    if (!attivaId) return [];
+    return (pazientiTutti ?? []).filter((p) => String(p.doclogManifestazioneId ?? '') === attivaId);
+  }, [pazientiTutti, attivaId]);
+
+  const conteggioOggi = useMemo(
+    () => filterPazientiVistiOggi(pazientiManifestazione).length,
+    [pazientiManifestazione],
+  );
 
   const righe = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,6 +79,30 @@ export default function DoclogPazientiPage() {
   const apri = (docId) =>
     navigate(`/pma/${encodeURIComponent(DOCLOG_PMA_ID)}/paziente/${encodeURIComponent(docId)}`);
 
+  const onExportOggi = async () => {
+    setExportErr(null);
+    setExportMsg(null);
+    if (!attivaId) {
+      setExportErr('Seleziona una manifestazione attiva in Impostazioni.');
+      return;
+    }
+    setExportBusy(true);
+    try {
+      const { count } = await exportPazientiOggiViewerZip(
+        pazientiTutti,
+        attivaId,
+        attiva?.nome ?? 'Manifestazione',
+      );
+      setExportMsg(
+        `Scaricato ZIP con ${count} pazienti visti oggi. Estrai lo ZIP e apri index.html per il viewer offline.`,
+      );
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : 'Export non riuscito.');
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 pb-8 pt-4">
       <h2 className="mb-1 text-xl font-bold uppercase text-slate-900">Pazienti</h2>
@@ -73,6 +113,28 @@ export default function DoclogPazientiPage() {
       ) : (
         <p className="mb-4 text-sm text-amber-700">Nessuna manifestazione attiva selezionata.</p>
       )}
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={exportBusy || loading || !attivaId || conteggioOggi === 0}
+          onClick={() => void onExportOggi()}
+          className={`${btnSecondary} shrink-0`}
+          title="Scarica ZIP con viewer HTML offline (pazienti visti oggi)"
+        >
+          {exportBusy ? 'Export…' : `ZIP viewer oggi (${conteggioOggi})`}
+        </button>
+      </div>
+      {exportMsg ? (
+        <p className="mb-3 text-sm text-emerald-800" role="status">
+          {exportMsg}
+        </p>
+      ) : null}
+      {exportErr ? (
+        <p className="mb-3 text-sm text-red-700" role="alert">
+          {exportErr}
+        </p>
+      ) : null}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input

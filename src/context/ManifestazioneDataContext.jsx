@@ -17,12 +17,12 @@ const COLLECTION_KEYS = {
   [COLLECTIONS.note_diario]: 'noteDiario',
 };
 
-function subscribeNested(pathFn, manifestationId, onData, reportSync, reportError) {
+function subscribeNested(pathFn, manifestationId, onData, reportSync, onError) {
   const colRef = collection(db, ...pathFn(manifestationId));
   return onSnapshot(
     colRef,
     (snap) => {
-      reportSync();
+      reportSync(snap);
       onData(
         snap.docs.map((d) => ({
           _docId: d.id,
@@ -30,11 +30,7 @@ function subscribeNested(pathFn, manifestationId, onData, reportSync, reportErro
         })),
       );
     },
-    (err) => {
-      console.error('Firestore listener:', err);
-      reportError(err);
-      onData([]);
-    },
+    onError,
   );
 }
 
@@ -72,8 +68,8 @@ export function ManifestazioneDataProvider({ children }) {
     };
 
     const onCollectionError = (key) => (err) => {
+      console.error(`Firestore listener (${key}):`, err);
       reportError(err);
-      setError(err?.message ?? 'Errore Firestore');
       markLoaded(key);
     };
 

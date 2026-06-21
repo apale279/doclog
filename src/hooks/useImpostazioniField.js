@@ -42,7 +42,7 @@ export function useImpostazioniField(fieldKey) {
       docRef,
       (snap) => {
         if (cancelled) return;
-        reportSync();
+        reportSync(snap);
 
         const raw = snap.exists() ? readImpostazioniFieldRaw(snap.data(), fieldKey) : undefined;
         const serverValue = readImpostazioniFieldForDisplay(

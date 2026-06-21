@@ -43,7 +43,7 @@ export function useRegistryPartecipanti(legacyArrayFromDoc) {
     const unsub = onSnapshot(
       col,
       (snap) => {
-        reportSync();
+        reportSync(snap);
         const list = snap.docs
           .map((d) => {
             const data = d.data();

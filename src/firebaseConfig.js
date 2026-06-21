@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -25,5 +25,9 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
 export const auth = getAuth(app);
+// Sessione login persistente sul dispositivo (necessaria per riaprire offline).
+void setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Auth persistence non impostata:', err);
+});
 export const storage = getStorage(app);
 

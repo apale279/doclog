@@ -511,20 +511,20 @@ export function PazienteModuloPma({
         <div
           className={
             hideSchedaUnlockBar
-              ? 'grid shrink-0 gap-2 text-sm sm:grid-cols-2'
-              : 'grid shrink-0 grid-cols-[1fr_1fr_auto] items-end gap-x-3 px-3 text-sm sm:gap-x-4 sm:px-4'
+              ? 'grid shrink-0 gap-1.5 py-1.5 text-sm sm:grid-cols-2'
+              : 'grid shrink-0 grid-cols-[1fr_1fr_auto] items-center gap-x-3 px-3 py-1.5 text-sm sm:gap-x-4 sm:px-4'
           }
         >
-          <div className="min-w-0 text-left">
-            <p className="text-xs font-medium text-slate-500">Medico di riferimento</p>
+          <div className="min-w-0 flex items-baseline gap-1.5 text-left">
+            <p className="shrink-0 text-xs font-medium text-slate-500">Medico</p>
             <p className="truncate font-semibold text-slate-800">{p.medico_rif?.trim() || '—'}</p>
           </div>
-          <div className={`min-w-0 ${hideSchedaUnlockBar ? '' : 'text-center'}`}>
-            <p className="text-xs font-medium text-slate-500">Infermiere di riferimento</p>
+          <div className={`min-w-0 flex items-baseline gap-1.5 ${hideSchedaUnlockBar ? '' : 'justify-center'}`}>
+            <p className="shrink-0 text-xs font-medium text-slate-500">Infermiere</p>
             <p className="truncate font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</p>
           </div>
           {!hideSchedaUnlockBar ? (
-            <div className="flex shrink-0 items-end justify-end pb-px">
+            <div className="flex shrink-0 items-center justify-end">
               <SchedaUnlockBar
                 paziente={rawDoc}
                 onToggleModifica={async (forced) => {

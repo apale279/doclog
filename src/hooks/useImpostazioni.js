@@ -23,7 +23,7 @@ export function useImpostazioni() {
       docRef,
       async (snap) => {
         if (cancelled) return;
-        reportSync();
+        reportSync(snap);
 
         if (!snap.exists()) {
           setDocExists(false);

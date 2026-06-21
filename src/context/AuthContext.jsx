@@ -10,6 +10,11 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
 import { COLLECTIONS } from '../lib/firestorePaths';
+import {
+  clearOfflineProfile,
+  loadOfflineProfile,
+  saveOfflineProfile,
+} from '../lib/offlineProfileCache';
 import { useTenantContext } from './TenantContext';
 import { setImpostazioniConfigCanEdit } from '../lib/impostazioniEditGate';
 import { isDoclogAdmin } from '../lib/doclogUsers';
@@ -54,6 +59,12 @@ export function AuthProvider({ children }) {
     }
     setProfileLoading(true);
     const ref = doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', user.uid);
+    const cached = loadOfflineProfile(tenantId, user.uid);
+    if (cached) {
+      const prof = buildProfile(cached);
+      setProfile(prof);
+      setImpostazioniConfigCanEdit(isDoclogAdmin(prof));
+    }
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -61,11 +72,20 @@ export function AuthProvider({ children }) {
         setProfile(prof);
         setProfileLoading(false);
         setImpostazioniConfigCanEdit(isDoclogAdmin(prof));
+        if (prof) saveOfflineProfile(tenantId, user.uid, snap.data());
+        else clearOfflineProfile(tenantId, user.uid);
       },
       () => {
-        setProfile(null);
+        const fallback = loadOfflineProfile(tenantId, user.uid);
+        if (fallback) {
+          const prof = buildProfile(fallback);
+          setProfile(prof);
+          setImpostazioniConfigCanEdit(isDoclogAdmin(prof));
+        } else {
+          setProfile(null);
+          setImpostazioniConfigCanEdit(false);
+        }
         setProfileLoading(false);
-        setImpostazioniConfigCanEdit(false);
       },
     );
     return unsub;
@@ -82,15 +102,17 @@ export function AuthProvider({ children }) {
       );
       const prof = snap.exists() ? buildProfile(snap.data()) : null;
       setProfile(prof);
+      if (prof && snap.exists()) saveOfflineProfile(tenantId, cred.user.uid, snap.data());
       return prof;
     },
     [tenantId],
   );
 
   const logout = useCallback(async () => {
+    if (tenantId && user?.uid) clearOfflineProfile(tenantId, user.uid);
     await signOut(auth);
     setProfile(null);
-  }, []);
+  }, [tenantId, user?.uid]);
 
   const value = useMemo(
     () => ({

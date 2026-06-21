@@ -36,13 +36,24 @@ function formatSyncTime(date) {
   });
 }
 
-function SyncIndicator({ online, error, syncLabel }) {
+function SyncIndicator({ online, offlineMode, hasPendingWrites, browserOnline, error, syncLabel }) {
+  let dot = online ? 'bg-emerald-500' : 'bg-red-500';
+  let title = online ? 'Firestore sincronizzato' : error ?? 'Firestore non raggiungibile';
+
+  if (!browserOnline) {
+    dot = 'bg-amber-500';
+    title = 'Offline — cache locale';
+  } else if (hasPendingWrites) {
+    dot = 'bg-sky-500 animate-pulse';
+    title = 'Sincronizzazione in corso';
+  } else if (offlineMode) {
+    dot = 'bg-amber-500';
+    title = error ? `Cache locale (${error})` : 'Dati dalla cache locale';
+  }
+
   return (
     <div className="flex items-center gap-2">
-      <span
-        className={`h-2.5 w-2.5 shrink-0 rounded-full ${online ? 'bg-emerald-500' : 'bg-red-500'}`}
-        title={online ? 'Firestore connesso' : error ?? 'Firestore non raggiungibile'}
-      />
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} title={title} />
       <span className="font-mono text-xs text-slate-500" title="Ultima sincronizzazione">
         {syncLabel}
       </span>
@@ -57,7 +68,14 @@ export function AppHeader() {
   const { impostazioni } = useImpostazioni();
   const guidaPdfUrl = (impostazioni.guida_pdf_url ?? '').trim();
   const { openNuovoEvento } = useEventoScheda();
-  const { online, lastSyncAt, error } = useFirestoreSync();
+  const {
+    online,
+    offlineMode,
+    browserOnline,
+    hasPendingWrites,
+    lastSyncAt,
+    error,
+  } = useFirestoreSync();
   const kioskPopOut = useKioskPopOutContextOptional();
   const { fullCentrale, scopeId, restrictedNav, accessiblePma } = usePmaAccess();
   const [syncLabel, setSyncLabel] = useState('—');
@@ -103,7 +121,14 @@ export function AppHeader() {
                   : profile?.nome || user.displayName || '—'}
               </span>
             ) : null}
-            <SyncIndicator online={online} error={error} syncLabel={syncLabel} />
+            <SyncIndicator
+              online={online}
+              offlineMode={offlineMode}
+              hasPendingWrites={hasPendingWrites}
+              browserOnline={browserOnline}
+              error={error}
+              syncLabel={syncLabel}
+            />
           </div>
         ) : (
           <>
@@ -113,7 +138,14 @@ export function AppHeader() {
               </NavLink>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
-              <SyncIndicator online={online} error={error} syncLabel={syncLabel} />
+              <SyncIndicator
+              online={online}
+              offlineMode={offlineMode}
+              hasPendingWrites={hasPendingWrites}
+              browserOnline={browserOnline}
+              error={error}
+              syncLabel={syncLabel}
+            />
               {isDashboard && fullCentrale && (
                 <>
                   <button type="button" onClick={openNuovoEvento} className={navActiveClass}>

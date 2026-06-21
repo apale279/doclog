@@ -20,15 +20,27 @@ export function RequireAuthDoclog() {
   }
 
   if (!profile && !profileLoading) {
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-4 text-center">
         <div className="max-w-md rounded-xl border border-amber-200 bg-amber-50 p-6">
           <p className="text-sm font-semibold text-amber-950">
-            Account non abilitato in DOCLOG.
+            {offline
+              ? 'Profilo non disponibile offline.'
+              : 'Account non abilitato in DOCLOG.'}
           </p>
           <p className="mt-2 text-xs text-amber-900">
-            L&apos;utente <strong>{user.email}</strong> non ha un profilo. Chiedi a un amministratore
-            di abilitarlo in Impostazioni → Utenti.
+            {offline ? (
+              <>
+                Accedi almeno una volta con connessione internet su questo dispositivo per
+                memorizzare il profilo. Poi potrai riaprire DOCLOG anche senza rete.
+              </>
+            ) : (
+              <>
+                L&apos;utente <strong>{user.email}</strong> non ha un profilo. Chiedi a un
+                amministratore di abilitarlo in Impostazioni → Utenti.
+              </>
+            )}
           </p>
           <button
             type="button"

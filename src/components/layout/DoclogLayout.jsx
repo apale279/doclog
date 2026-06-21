@@ -8,7 +8,7 @@ import { useManifestazioneAttiva } from '../../hooks/useManifestazioneAttiva';
 import { useAuth } from '../../context/AuthContext';
 import { isDoclogAdmin } from '../../lib/doclogUsers';
 import { saveImpostazioniField } from '../../services/impostazioniService';
-import { PmaChiamaTriageAlertListener } from '../pma/PmaChiamaTriageAlertListener';
+import { OfflineSyncBanner } from '../ui/OfflineSyncBanner';
 
 const SPORTIVA_NOME = 'MANIFESTAZIONE SPORTIVA';
 
@@ -93,20 +93,50 @@ const navLinkClass = ({ isActive }) =>
   }`;
 
 function DbStatusBadge() {
-  const { online, error } = useFirestoreSync();
-  const ok = online && !error;
+  const {
+    online,
+    browserOnline,
+    servingFromCache,
+    hasPendingWrites,
+    error,
+  } = useFirestoreSync();
+
+  let tone = 'text-emerald-600';
+  let dot = 'bg-emerald-500';
+  let label = 'DB online';
+  let title = 'Database sincronizzato con Firebase';
+
+  if (!browserOnline) {
+    tone = 'text-amber-700';
+    dot = 'bg-amber-500 animate-pulse';
+    label = 'Offline';
+    title = 'Nessuna connessione — dati e modifiche in locale';
+  } else if (hasPendingWrites) {
+    tone = 'text-sky-700';
+    dot = 'bg-sky-500 animate-pulse';
+    label = 'Sync…';
+    title = 'Invio modifiche in corso';
+  } else if (servingFromCache || !online) {
+    tone = 'text-amber-700';
+    dot = 'bg-amber-500';
+    label = 'Cache locale';
+    title = error
+      ? `Dati dalla cache locale (${error})`
+      : 'Dati serviti dalla cache locale finché il server non risponde';
+  } else if (error) {
+    tone = 'text-red-600';
+    dot = 'bg-red-500 animate-pulse';
+    label = 'DB errore';
+    title = `Errore DB: ${error}`;
+  }
+
   return (
     <span
-      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${
-        ok ? 'text-emerald-600' : 'text-red-600'
-      }`}
-      title={error ? `Errore DB: ${error}` : ok ? 'Database connesso' : 'Database non raggiungibile'}
+      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${tone}`}
+      title={title}
     >
-      <span
-        className={`h-2 w-2 rounded-full ${ok ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`}
-        aria-hidden
-      />
-      {ok ? 'DB online' : 'DB offline'}
+      <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden />
+      {label}
     </span>
   );
 }
@@ -163,6 +193,7 @@ export function DoclogLayout() {
           </div>
         </nav>
       </header>
+      <OfflineSyncBanner />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <RouteErrorBoundary>
           <Outlet />

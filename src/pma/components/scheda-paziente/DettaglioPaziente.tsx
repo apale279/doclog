@@ -72,7 +72,7 @@ export function DettaglioPaziente({
         className={
           compact
             ? 'pma-scheda-mobile-chrome sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-sm'
-            : 'shrink-0 border-b border-slate-200 bg-white py-2'
+            : 'shrink-0 border-b border-slate-200 bg-white py-1.5 lg:py-2.5'
         }
       >
         {compact ? (
@@ -97,13 +97,13 @@ export function DettaglioPaziente({
             </p>
           </>
         ) : (
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-3 sm:px-4">
+          <div className="mx-auto flex max-w-[1700px] flex-wrap items-center justify-between gap-2 px-3 sm:px-4">
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`pma-bar__sdot ${SDOT[p.codice_colore]}`}
                 aria-label={`Codice colore ${CODICE_COLORE_LABEL[p.codice_colore]}`}
               />
-              <span className="text-sm font-medium text-slate-800">
+              <span className="text-sm font-medium text-slate-800 lg:text-base">
                 {CODICE_COLORE_LABEL[p.codice_colore]}
                 {haStatoPma && (
                   <>
@@ -122,14 +122,14 @@ export function DettaglioPaziente({
                 )}
               </span>
               {chiusoCentrale ? (
-                <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 lg:px-2.5 lg:py-1 lg:text-sm">
                   Chiuso
                 </span>
               ) : haStatoPma ? (
                 <span
                   className={
                     cross
-                      ? `rounded px-2 py-0.5 text-xs font-semibold ${
+                      ? `rounded px-2 py-0.5 text-xs font-semibold lg:px-2.5 lg:py-1 lg:text-sm ${
                           schedaPmaAttiva ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
                         }`
                       : `pma-bar__badge ${schedaPmaAttiva ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
@@ -147,7 +147,7 @@ export function DettaglioPaziente({
                 <span
                   className={
                     cross
-                      ? `rounded px-2 py-0.5 text-xs font-semibold ${
+                      ? `rounded px-2 py-0.5 text-xs font-semibold lg:px-2.5 lg:py-1 lg:text-sm ${
                           p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
                         }`
                       : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
@@ -157,19 +157,20 @@ export function DettaglioPaziente({
                 </span>
               )}
             </div>
-            <code className="font-mono text-sm font-medium text-slate-700">{p.id_paziente_visibile}</code>
-            <PmaPettoraleBadge pettorale={p.pettorale} className="px-2 py-0.5 text-[11px]" />
+            <code className="font-mono text-sm font-medium text-slate-700 lg:text-base">{p.id_paziente_visibile}</code>
+            <PmaPettoraleBadge pettorale={p.pettorale} className="px-2 py-0.5 text-[11px] lg:px-2.5 lg:py-1 lg:text-xs" />
           </div>
         )}
       </div>
 
+      <div className={compact || cross ? undefined : 'mx-auto w-full max-w-[1700px] px-3 pt-1.5 sm:px-4'}>
       <nav
         className={
           compact
             ? 'pma-scheda-mobile-tabs flex shrink-0 gap-0.5 overflow-x-auto border-b border-slate-200 bg-white px-2 pb-px [-webkit-overflow-scrolling:touch]'
             : cross
               ? 'flex shrink-0 flex-wrap gap-1 border-b border-slate-200 bg-white px-3 sm:px-4'
-              : 'pma-tabs shrink-0'
+              : 'pma-tabs shrink-0 rounded-lg border border-slate-200 bg-slate-50'
         }
         aria-label="Sezioni scheda paziente"
         role="tablist"
@@ -194,7 +195,7 @@ export function DettaglioPaziente({
                         : 'text-slate-600'
                     }`
                   : cross
-                    ? `rounded-t-lg px-4 py-2 text-xs font-bold uppercase ${
+                    ? `rounded-t-lg px-4 py-2 text-xs font-bold uppercase lg:px-5 lg:py-2.5 lg:text-sm ${
                         selected
                           ? 'border-b-2 border-sky-600 text-sky-700'
                           : 'text-slate-600 hover:text-slate-900'
@@ -207,6 +208,7 @@ export function DettaglioPaziente({
           )
         })}
       </nav>
+      </div>
 
       {compact && alertSlot ? (
         <div className="shrink-0 space-y-1 border-b border-slate-100 bg-slate-50 py-1">{alertSlot}</div>
@@ -215,8 +217,8 @@ export function DettaglioPaziente({
       <div
         className={
           fillHeight
-            ? `mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden ${compact ? 'pt-1' : 'pt-3'}`
-            : 'mx-auto w-full max-w-5xl flex-1 pt-3'
+            ? `mx-auto flex min-h-0 w-full max-w-[1700px] flex-1 flex-col overflow-hidden ${compact ? 'pt-1' : 'pt-2'}`
+            : 'mx-auto w-full max-w-[1700px] flex-1 pt-2'
         }
       >
         {saveError}

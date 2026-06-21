@@ -65,7 +65,7 @@ import { ParametriVitaliPanel } from './ParametriVitaliPanel'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
   const base =
-    'min-h-[44px] w-full rounded-lg border-2 px-2 py-2 text-xs font-bold uppercase shadow-sm transition-colors sm:text-sm'
+    'min-h-[44px] w-full rounded-lg border-2 px-2 py-2 text-xs font-bold uppercase shadow-sm transition-colors sm:text-sm lg:min-h-[48px] lg:px-3 lg:py-2.5 lg:text-base'
   if (!selected) {
     return `${base} border-slate-400 bg-white text-slate-800 hover:border-slate-600 hover:bg-slate-50`
   }
@@ -758,7 +758,7 @@ export function CartellaClinicaSection({
 
       <div className={embedded ? 'mt-3 space-y-0' : 'mt-3 space-y-0 border-t border-slate-100 pt-3'}>
         <nav
-          className="pma-tabs shrink-0 border-b border-slate-200 bg-white"
+          className="pma-tabs shrink-0 rounded-lg border border-slate-200 bg-slate-50"
           role="tablist"
           aria-label="Sotto-sezioni cartella clinica"
         >
@@ -778,7 +778,8 @@ export function CartellaClinicaSection({
                 onClick={() => setCartellaSubTab(tab.id)}
                 className={`pma-theme-skip pma-tab ${selected ? 'pma-tab--active' : ''}`}
               >
-                <span aria-hidden>{compiled ? '✅' : '❌'}</span> {tab.label}
+                <span aria-hidden className={`pma-tab__dot ${compiled ? 'pma-tab__dot--done' : ''}`} />
+                {tab.label}
               </button>
             )
           })}
@@ -807,11 +808,11 @@ export function CartellaClinicaSection({
               className={`pma-allergie-verifica block ${bloccoVerificaAllergie ? 'pma-allergie-verifica--pending' : ''}`}
             >
               <span className="pma-field__label">Domanda allergie</span>
-              <p className="mt-1 text-sm leading-snug text-slate-700">
+              <p className="mt-1 text-sm leading-snug text-slate-700 lg:text-base">
                 Il paziente ha allergie farmacologiche o di altro tipo da segnalare?
               </p>
               {bloccoVerificaAllergie && canEdit ? (
-                <p className="mt-1 text-xs font-semibold text-red-700">
+                <p className="mt-1 text-xs font-semibold text-red-700 lg:text-sm">
                   Seleziona SI, NO o NON NOTO per sbloccare la cartella sottostante.
                 </p>
               ) : null}
@@ -857,6 +858,7 @@ export function CartellaClinicaSection({
               />
             </label>
             </PmaFieldGuard>
+            <div className="grid gap-4 lg:grid-cols-2">
             <PmaFieldGuard fieldKey="apr" className="block">
             <label className="pma-field">
               <span className="pma-field__label">APR (anamnesi patologica remota)</span>
@@ -871,7 +873,7 @@ export function CartellaClinicaSection({
               <textarea
                 key={`apr-${pazienteId}`}
                 disabled={!schedaClinicalEdit}
-                rows={3}
+                rows={5}
                 value={aprDraft}
                 onChange={(e) => setAprDraft(e.target.value)}
                 onFocus={() => setAprFocused(true)}
@@ -888,12 +890,13 @@ export function CartellaClinicaSection({
               <textarea
                 key={`app-${pazienteId}`}
                 disabled={!schedaClinicalEdit}
-                rows={3}
+                rows={5}
                 defaultValue={p.app}
                 onBlur={(e) => void write({ app: e.target.value })}
               />
             </label>
             </PmaFieldGuard>
+            </div>
             </div>
           </div>
         ) : null}
@@ -955,7 +958,7 @@ export function CartellaClinicaSection({
           />
 
           <PmaFieldGuard fieldKey="farmaci">
-            <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+            <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3 lg:px-4 lg:py-2.5 lg:text-base">
               Farmaci
             </div>
             <div className="space-y-0">
@@ -975,9 +978,9 @@ export function CartellaClinicaSection({
               </button>
             ) : null}
             <div className="mt-2 overflow-x-auto rounded border border-slate-200 [-webkit-overflow-scrolling:touch]">
-              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm lg:text-base">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-100 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                  <tr className="border-b border-slate-200 bg-slate-100 text-[10px] font-bold uppercase tracking-wide text-slate-600 lg:text-xs">
                     <th className="border border-slate-200 p-1">Farmaco</th>
                     <th className="border border-slate-200 p-1">Dose</th>
                     <th className="border border-slate-200 p-1">Via</th>
@@ -1085,7 +1088,7 @@ export function CartellaClinicaSection({
                 </PmaFieldGuard>
 
                 <PmaFieldGuard fieldKey="prestazioni_sel">
-                <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+                <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3 lg:px-4 lg:py-2.5 lg:text-base">
                   Terapie e prestazioni
                 </div>
                 <div className="space-y-0">
@@ -1203,13 +1206,13 @@ export function CartellaClinicaSection({
                     <p className="mt-1 text-xs text-slate-500">Nessuna prestazione selezionata.</p>
                   ) : (
                     <ul
-                      className="pma-prest-grid mt-2 grid list-none grid-cols-4 gap-2 p-0"
+                      className="pma-prest-grid mt-2 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-4 lg:grid-cols-6 lg:gap-3"
                       aria-label="Elenco prestazioni selezionate"
                     >
                       {prestazioniOrdinate.map((label) => (
                         <li
                           key={label}
-                          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium leading-snug text-slate-800"
+                          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium leading-snug text-slate-800 lg:px-3 lg:py-2 lg:text-sm"
                         >
                           {label}
                         </li>
@@ -1223,7 +1226,7 @@ export function CartellaClinicaSection({
             </>
 
         <PmaFieldGuard fieldKey="rivalutazioni">
-        <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+        <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3 lg:px-4 lg:py-2.5 lg:text-base">
           Rivalutazione
         </div>
         <div className="space-y-0">
